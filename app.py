@@ -11,6 +11,11 @@ def home():
     return render_template('index.html')
 
 
+@app.route('/bubbles')
+def bubbles():
+    return render_template('bubbles.html')
+
+
 @app.route('/analyse', methods=['POST'])
 def analyse():
     data = request.get_json(silent=True) or {}
