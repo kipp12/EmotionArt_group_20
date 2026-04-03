@@ -16,6 +16,11 @@ def bubbles():
     return render_template('bubbles.html')
 
 
+@app.route('/purple-live')
+def purple_live():
+    return render_template('purple_live.html')
+  
+  
 @app.route('/zen-pots')
 def zen_pots():
     return render_template('zen_pots.html')
