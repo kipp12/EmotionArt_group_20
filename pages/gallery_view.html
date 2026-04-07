@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ item.title if item else 'EmotionArt Gallery View' }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css') }}">
+</head>
+<body class="viewer-body">
+    <main class="viewer-stage">
+        <div class="viewer-frame">
+            <button class="gallery-delete viewer-delete" type="button" data-delete data-filename="{{ filename }}" aria-label="Delete artwork">X</button>
+            <button class="gallery-favorite viewer-favorite{% if item and item.favorite %} is-favorite{% endif %}" type="button" data-favorite data-filename="{{ filename }}" data-favorite-state="{{ 'true' if item and item.favorite else 'false' }}" aria-label="Toggle favourite"><span class="favorite-star" aria-hidden="true">★</span></button>
+            <img class="viewer-image" src="{{ url_for('gallery_file', filename=filename) }}" alt="{{ item.title if item else filename }}">
+            {% if item %}
+            <div class="viewer-caption">{{ item.title }}</div>
+            {% endif %}
+            <div class="viewer-actions">
+                <a class="gallery-action" href="/gallery">Back</a>
+                <a class="gallery-action gallery-action-download" href="{{ url_for('gallery_download', filename=filename) }}">Download</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function broadcastGalleryChange(type, filename) {
+            window.localStorage.setItem('emotionart-gallery-event', JSON.stringify({
+                type,
+                filename,
+                timestamp: Date.now(),
+            }));
+        }
+
+        const deleteButton = document.querySelector('[data-delete]');
+        if (deleteButton) {
+            deleteButton.addEventListener('click', async () => {
+                const filename = deleteButton.dataset.filename;
+                const confirmed = window.confirm('Delete this artwork from the local gallery folder?');
+                if (!confirmed) return;
+
+                const response = await fetch('/api/gallery/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename }),
+                });
+
+                const payload = await response.json();
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        broadcastGalleryChange('delete', filename);
+                        window.location.href = '/gallery';
+                        return;
+                    }
+                    window.alert(payload.error || 'Delete failed.');
+                    return;
+                }
+
+                broadcastGalleryChange('delete', filename);
+                window.location.href = '/gallery';
+            });
+        }
+
+        const favoriteButton = document.querySelector('[data-favorite]');
+        if (favoriteButton) {
+            favoriteButton.addEventListener('click', async () => {
+                const filename = favoriteButton.dataset.filename;
+                const favorite = favoriteButton.dataset.favoriteState !== 'true';
+                const response = await fetch('/api/gallery/favorite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename, favorite }),
+                });
+
+                const payload = await response.json();
+                if (!response.ok) {
+                    window.alert(payload.error || 'Favorite update failed.');
+                    return;
+                }
+
+                broadcastGalleryChange('favorite', filename);
+                window.location.reload();
+            });
+        }
+    </script>
+</body>
+</html>

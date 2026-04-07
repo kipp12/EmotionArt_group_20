@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmotionArt | Favourites</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css') }}">
+</head>
+<body>
+    <div class="app-shell">
+        {% set themes_active = false %}
+        {% set gallery_active = false %}
+        {% set favourites_active = true %}
+        {% set settings_active = false %}
+        {% include '_sidebar.html' %}
+
+        <main class="app-main">
+            <header class="page-header">
+                <div>
+                    <h2 class="page-title">Favourites</h2>
+                </div>
+            </header>
+
+            <section class="page-content">
+                {% if gallery_items %}
+                <div class="gallery-grid">
+                    {% for item in gallery_items %}
+                    <article class="gallery-card">
+                        <button class="gallery-delete" type="button" data-delete data-filename="{{ item.file_name }}" aria-label="Delete {{ item.title }}">X</button>
+                        <button class="gallery-favorite is-favorite" type="button" data-favorite data-filename="{{ item.file_name }}" data-favorite-state="true" aria-label="Unfavorite {{ item.title }}"><span class="favorite-star" aria-hidden="true">★</span></button>
+                        <div class="gallery-media">
+                            <img src="{{ url_for('gallery_file', filename=item.file_name) }}" alt="{{ item.title }}">
+                        </div>
+                        <div class="gallery-body">
+                            <h3 class="tile-title gallery-title">{{ item.title }}</h3>
+                            <p class="tile-copy">Saved from {{ item.page_name.replace('_', ' ').title() }}</p>
+                        </div>
+                        <div class="gallery-actions">
+                            <button class="gallery-action" type="button" data-rename data-filename="{{ item.file_name }}" data-title="{{ item.title }}">Rename</button>
+                            <a class="gallery-action" href="{{ url_for('gallery_view', filename=item.file_name) }}">Fullscreen</a>
+                            <a class="gallery-action gallery-action-download" href="{{ url_for('gallery_download', filename=item.file_name) }}">Download</a>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-panel">
+                    <h3 class="tile-title gallery-title">No favourites yet</h3>
+                    <p class="tile-copy">You have no favourites yet. Favourite an item in your gallery to view it here.</p>
+                </div>
+                {% endif %}
+            </section>
+        </main>
+    </div>
+
+    <script>
+        function broadcastGalleryChange(type, filename) {
+            window.localStorage.setItem('emotionart-gallery-event', JSON.stringify({
+                type,
+                filename,
+                timestamp: Date.now(),
+            }));
+        }
+
+        document.querySelectorAll('[data-favorite]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const filename = button.dataset.filename;
+                const favorite = button.dataset.favoriteState !== 'true';
+                const response = await fetch('/api/gallery/favorite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename, favorite }),
+                });
+
+                const payload = await response.json();
+                if (!response.ok) {
+                    window.alert(payload.error || 'Favourite update failed.');
+                    return;
+                }
+
+                broadcastGalleryChange('favorite', filename);
+                window.location.reload();
+            });
+        });
+
+        document.querySelectorAll('[data-rename]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const filename = button.dataset.filename;
+                const currentTitle = button.dataset.title;
+                const newTitle = window.prompt('Rename artwork', currentTitle);
+                if (!newTitle || newTitle.trim() === currentTitle) return;
+
+                const response = await fetch('/api/gallery/rename', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename, title: newTitle.trim() }),
+                });
+
+                const payload = await response.json();
+                if (!response.ok) {
+                    window.alert(payload.error || 'Rename failed.');
+                    return;
+                }
+
+                broadcastGalleryChange('rename', filename);
+                window.location.reload();
+            });
+        });
+
+        document.querySelectorAll('[data-delete]').forEach(button => {
+            button.addEventListener('click', async () => {
+                const filename = button.dataset.filename;
+                if (!window.confirm('Delete this artwork from the local gallery folder?')) return;
+
+                const response = await fetch('/api/gallery/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename }),
+                });
+
+                const payload = await response.json();
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        button.closest('.gallery-card')?.remove();
+                        broadcastGalleryChange('delete', filename);
+                        return;
+                    }
+                    window.alert(payload.error || 'Delete failed.');
+                    return;
+                }
+
+                button.closest('.gallery-card')?.remove();
+                broadcastGalleryChange('delete', filename);
+            });
+        });
+
+        window.addEventListener('storage', event => {
+            if (event.key !== 'emotionart-gallery-event' || !event.newValue) return;
+            window.location.reload();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                window.location.reload();
+            }
+        });
+    </script>
+</body>
+</html>

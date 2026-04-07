@@ -1,0 +1,33 @@
+<aside class="app-sidebar">
+    <div class="brand-text">
+        <h1 class="brand-title">Emotion<span class="brand-title-accent">Art</span></h1>
+    </div>
+
+    <nav class="sidebar-nav" aria-label="Primary">
+        <a class="nav-link{% if themes_active %} active{% endif %}" href="/">
+            <span class="nav-link-label">
+                <img class="nav-icon" src="{{ url_for('static', filename='images/themes-pixel-icon.png') }}" alt="" aria-hidden="true">
+                <span>Themes</span>
+            </span>
+        </a>
+        <a class="nav-link{% if gallery_active %} active{% endif %}" href="/gallery">
+            <span class="nav-link-label">
+                <img class="nav-icon" src="{{ url_for('static', filename='images/gallery-pixel-icon.png') }}" alt="" aria-hidden="true">
+                <span>Gallery</span>
+            </span>
+        </a>
+        <a class="nav-link{% if favourites_active %} active{% endif %}" href="/favourites">
+            <span class="nav-link-label">
+                <img class="nav-icon" src="{{ url_for('static', filename='images/favourites-pixel-icon.png') }}" alt="" aria-hidden="true">
+                <span>Favourites</span>
+            </span>
+        </a>
+        <a class="nav-link{% if settings_active %} active{% endif %}" href="/settings">
+            <span class="nav-link-label">
+                <img class="nav-icon" src="{{ url_for('static', filename='images/settings-pixel-icon.png') }}" alt="" aria-hidden="true">
+                <span>Settings</span>
+            </span>
+        </a>
+    </nav>
+</aside>
+<script src="{{ url_for('static', filename='javascript/settings.js') }}"></script>

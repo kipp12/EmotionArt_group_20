@@ -16,14 +16,14 @@ function buildScene(map) {
     frontLayer.colorMode(HSB, 360, 100, 100, 1);
     backLayer.background(colorSet.bgColor.h, colorSet.bgColor.s, colorSet.bgColor.b);
 
-    const baseHeight = height * 0.74;
+    const baseHeight = height * 0.63;
     const queue = [];
     paintBackgroundDots(backLayer, colorSet, baseHeight);
 
     const potCount = min(12, max(9, floor(width / 110)));
     const potKeys = buildPotEmotionSequence(map, potCount);
     const plantMix = buildPlantEmotionMix(map);
-    const clusterWidth = min(width * 0.9, 1120);
+    const clusterWidth = min(width * 0.78, 980);
     const potWidth = clusterWidth / potCount;
     const overlap = 0.7;
     const occupiedWidth = potWidth * ((potCount - 1) * overlap + 1);

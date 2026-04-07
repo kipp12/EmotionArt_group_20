@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmotionArt | Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css') }}">
+</head>
+<body>
+    <div class="app-shell">
+        {% set themes_active = false %}
+        {% set gallery_active = false %}
+        {% set favourites_active = false %}
+        {% set settings_active = true %}
+        {% include '_sidebar.html' %}
+
+        <main class="app-main">
+            <header class="page-header">
+                <div>
+                    <h2 class="page-title">Settings</h2>
+                </div>
+            </header>
+
+            <section class="page-content">
+                <form id="settings-form" class="settings-grid">
+                    <section class="settings-card">
+                        <h3 class="gallery-section-title">Appearance</h3>
+                        <div class="settings-list">
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Application Theme</strong>
+                                    <span>Choose between light/dark theme.</span>
+                                </span>
+                                <select class="settings-select" name="appearance_theme">
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Interface Spacing</strong>
+                                    <span>Adjust spacing of panels.</span>
+                                </span>
+                                <select class="settings-select" name="appearance_density">
+                                    <option value="comfortable">Default</option>
+                                    <option value="compact">Compact</option>
+                                </select>
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Retro Font Styling</strong>
+                                    <span>Choose between normal styling or reduced styling for readability.</span>
+                                </span>
+                                <select class="settings-select" name="appearance_retro">
+                                    <option value="default">Default</option>
+                                    <option value="reduced">Reduced</option>
+                                </select>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="settings-card">
+                        <h3 class="gallery-section-title">Accessibility</h3>
+                        <div class="settings-list">
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Larger Text</strong>
+                                    <span>Increase text size across the interface.</span>
+                                </span>
+                                <input type="checkbox" class="settings-toggle" name="accessibility_large_text">
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Reduced Motion</strong>
+                                    <span>Disable all animation and motion on the application.</span>
+                                </span>
+                                <input type="checkbox" class="settings-toggle" name="accessibility_reduced_motion">
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Focus Visibility</strong>
+                                    <span>Add focus indicators to dropdown boxes and text boxes when active.</span>
+                                </span>
+                                <input type="checkbox" class="settings-toggle" name="accessibility_focus_visibility">
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="settings-card">
+                        <h3 class="gallery-section-title">Audio & Input</h3>
+                        <div class="settings-list">
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Default Microphone State</strong>
+                                    <span>Choose whether listening starts manually or automatically.</span>
+                                </span>
+                                <select class="settings-select" name="audio_default_mic">
+                                    <option value="manual">Manual Start</option>
+                                    <option value="auto">Auto Start</option>
+                                </select>
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Transcript Persistence</strong>
+                                    <span>Keep or clear the transcript after analysis.</span>
+                                </span>
+                                <select class="settings-select" name="audio_transcript_persistence">
+                                    <option value="keep">Keep Transcript</option>
+                                    <option value="clear">Clear After Analyse</option>
+                                </select>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="settings-card">
+                        <h3 class="gallery-section-title">Emotion Model</h3>
+                        <div class="settings-list">
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Classifier Model</strong>
+                                    <span>Choose between a fast model, or a more accurate but slower language processing model.</span>
+                                </span>
+                                <select class="settings-select" name="model_classifier">
+                                    <option value="default">Fast Model</option>
+                                </select>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="settings-card">
+                        <h3 class="gallery-section-title">Saving</h3>
+                        <div class="settings-list">
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Default Save Format</strong>
+                                    <span>Current export format for artwork saves.</span>
+                                </span>
+                                <select class="settings-select" name="saving_format">
+                                    <option value="png">PNG</option>
+                                </select>
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Gallery Folder</strong>
+                                    <span>Local folder currently used for saved artwork.</span>
+                                </span>
+                                <code class="settings-code">gallery/</code>
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Filename Pattern</strong>
+                                    <span>Use `[PAGE_NAME]` and `[NUMBER]`.</span>
+                                </span>
+                                <input class="settings-select" type="text" name="saving_filename_pattern" value="MY [PAGE_NAME] ART [NUMBER]">
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="settings-card">
+                        <h3 class="gallery-section-title">Privacy</h3>
+                        <div class="settings-list">
+                            <div class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Local Storage</strong>
+                                    <span>Saved artwork and metadata stay on this machine in the local gallery folder.</span>
+                                </span>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Clear Saved Metadata</strong>
+                                    <span>Clears transcripts, scores, and favourite flags while keeping images.</span>
+                                </span>
+                                <button id="clear-metadata" class="gallery-action" type="button">Clear Metadata</button>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Clear Gallery</strong>
+                                    <span>Deletes all saved images and metadata from the local gallery folder.</span>
+                                </span>
+                                <button id="clear-gallery" class="gallery-action" type="button">Clear Gallery</button>
+                            </div>
+                        </div>
+                    </section>
+                </form>
+
+                <div class="settings-footer">
+                    <div id="settings-status" class="settings-status" data-tone="neutral">Settings ready</div>
+                    <div class="settings-actions">
+                        <button id="restore-settings" class="gallery-action" type="button">Restore to Default</button>
+                        <button id="save-settings" class="gallery-action gallery-action-download" type="button">Save Changes</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
