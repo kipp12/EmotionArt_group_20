@@ -49,6 +49,6 @@ def _sort_results(results):
 def analyse_emotion(text, model_size="base"):
     if not text or not text.strip():
         return None
-
+    print("ANALYSE_EMOTION USING MODEL:", model_size)
     results = get_classifier(model_size)(text)
     return _sort_results(results)
