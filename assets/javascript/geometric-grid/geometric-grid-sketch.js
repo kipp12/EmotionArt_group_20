@@ -12,6 +12,61 @@ let paleta_cores = [
   "#f2f2e7",
 ];
 
+// Each emotion has an anchor hue (0-360). Scores are blended into a
+// weighted-average hue, then a muted palette is generated from it.
+const EMOTION_HUES = {
+  joy: 42,        // warm amber
+  sadness: 215,   // slate blue
+  anger: 8,       // brick red
+  fear: 260,      // muted purple
+  surprise: 320,  // dusty mauve
+  disgust: 95,    // olive green
+  neutral: 35,    // warm grey-tan
+};
+
+// Derive a full colour set from the raw emotion scores.
+// Returns { bg, outline, palette[] } — all p5 color objects.
+function generateEmotionPalette(emotions) {
+  colorMode(HSB, 360, 100, 100, 100);
+
+  // Only use the top 2 emotions for hue — using all 7 muddies the result.
+  // Square the scores so the dominant emotion has much stronger pull.
+  const top = emotions.slice(0, 2);
+  let hueX = 0, hueY = 0, totalScore = 0;
+  for (const e of top) {
+    const label = e.label.toLowerCase();
+    const h = EMOTION_HUES[label] !== undefined ? EMOTION_HUES[label] : EMOTION_HUES.neutral;
+    const w = e.score * e.score; // squared weight
+    hueX += Math.cos(h * Math.PI / 180) * w;
+    hueY += Math.sin(h * Math.PI / 180) * w;
+    totalScore += w;
+  }
+
+  let baseHue = ((Math.atan2(hueY, hueX) * 180 / Math.PI) + 360) % 360;
+  // Intensity: how dominant the top emotion is (higher = more saturated)
+  let intensity = emotions[0] ? emotions[0].score : 0;
+  let baseSat = lerp(15, 40, intensity);
+
+  // Background: very dark, slight hue tint
+  const bg = color(baseHue, baseSat * 0.3, 11);
+
+  // Outline: light, desaturated version
+  const outline = color(baseHue, baseSat * 0.2, 92);
+
+  // Generate 6 palette colours spread around the base hue
+  const offsets = [-35, -15, 0, 20, 40, 60];
+  const palette = offsets.map((off, i) => {
+    const h = (baseHue + off + 360) % 360;
+    // Alternate brightness for visual variety
+    const b = (i % 2 === 0) ? lerp(50, 70, intensity) : lerp(60, 80, intensity);
+    const s = lerp(baseSat * 0.6, baseSat * 1.2, (i / offsets.length));
+    return color(h, constrain(s, 8, 50), b);
+  });
+
+  colorMode(RGB, 255);
+  return { bg, outline, palette };
+}
+
 // --- Emotion-driven structural parameters ---
 
 let seno_escala = 0.01;       // animation pulse speed
@@ -143,6 +198,12 @@ function applyEmotionPalette(emotions) {
       ? floor(lerp(structure.star_points[1], secondStructure.star_points[1], blendRatio))
       : structure.star_points[1],
   ];
+
+  // Generate colours dynamically from all emotion scores
+  const generatedColors = generateEmotionPalette(emotions);
+  paleta_fundo = generatedColors.bg;
+  paleta_contorno = generatedColors.outline;
+  paleta_cores = generatedColors.palette;
 
   let modulo_tamanho = width / grade_coluna_qtd;
   grade_linha_qtd = ceil(height / modulo_tamanho);
