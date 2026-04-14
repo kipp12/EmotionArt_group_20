@@ -25,7 +25,7 @@
             <section class="page-content stage-layout">
                 <div class="visual-stage">
                     <canvas id="rdCanvas"></canvas>
-                    <div id="rd-info" style="position:absolute;top:12px;left:14px;font-family:monospace;font-size:9px;opacity:0.35;text-transform:uppercase;letter-spacing:2px;pointer-events:none;color:#fff;">Gray–Scott Reaction-Diffusion</div>
+                    <div id="rd-info"   style="position:absolute;top:12px;left:14px;font-family:monospace;font-size:9px;opacity:0.35;text-transform:uppercase;letter-spacing:2px;pointer-events:none;color:#fff;">Gray–Scott Reaction-Diffusion</div>
                     <div id="rd-params" style="position:absolute;bottom:12px;right:14px;font-family:monospace;font-size:9px;opacity:0.3;text-align:right;pointer-events:none;line-height:1.8;color:#fff;">f = —&nbsp;&nbsp;k = —</div>
                 </div>
 
@@ -61,28 +61,52 @@
         </main>
     </div>
 
-<!-- ─── Vertex Shader ──────────────────────────────────────────── -->
+<!-- ─── Shared vertex shader ──────────────────────────────────── -->
 <script id="vs" type="x-shader/x-vertex">
 attribute vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
 </script>
 
-<!-- ─── Gray-Scott Simulation Step ───────────────────────────── -->
+<!-- ─── Initialise texture: A=1, B=0 everywhere ──────────────── -->
+<script id="init-fs" type="x-shader/x-fragment">
+precision highp float;
+void main() { gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); }
+</script>
+
+<!-- ─── Seed shader: draw a circular patch of B chemical ─────── -->
+<script id="seed-fs" type="x-shader/x-fragment">
+precision highp float;
+uniform sampler2D u_tex;
+uniform vec2  u_simSize;
+uniform vec2  u_center;   /* seed centre in pixel coords */
+uniform float u_radius;   /* seed radius in pixels */
+
+void main() {
+    vec2 uv   = gl_FragCoord.xy / u_simSize;
+    float dist = length(gl_FragCoord.xy - u_center);
+    vec2 ab = texture2D(u_tex, uv).rg;
+    if (dist <= u_radius) {
+        gl_FragColor = vec4(0.5, 0.25, 0.0, 1.0);
+    } else {
+        gl_FragColor = vec4(ab.r, ab.g, 0.0, 1.0);
+    }
+}
+</script>
+
+<!-- ─── Gray-Scott simulation step ───────────────────────────── -->
 <script id="sim-fs" type="x-shader/x-fragment">
 precision highp float;
-
 uniform sampler2D u_tex;
-uniform vec2      u_texSize;
-uniform float     u_f;
-uniform float     u_k;
-uniform float     u_da;
-uniform float     u_db;
+uniform vec2  u_texSize;
+uniform float u_f;
+uniform float u_k;
+uniform float u_da;
+uniform float u_db;
 
 void main() {
     vec2 uv = gl_FragCoord.xy / u_texSize;
     vec2 px = 1.0 / u_texSize;
 
-    // 9-point weighted Laplacian stencil
     vec2 c  = texture2D(u_tex, uv).rg;
     vec2 n  = texture2D(u_tex, uv + vec2( 0.0,  px.y)).rg;
     vec2 s  = texture2D(u_tex, uv + vec2( 0.0, -px.y)).rg;
@@ -93,6 +117,7 @@ void main() {
     vec2 se = texture2D(u_tex, uv + vec2( px.x, -px.y)).rg;
     vec2 sw = texture2D(u_tex, uv + vec2(-px.x, -px.y)).rg;
 
+    /* 9-point weighted Laplacian */
     vec2 lap = (n + s + e + w) * 0.2
              + (ne + nw + se + sw) * 0.05
              - c;
@@ -108,56 +133,47 @@ void main() {
 }
 </script>
 
-<!-- ─── Render / Colourize ────────────────────────────────────── -->
+<!-- ─── Render / colourize ────────────────────────────────────── -->
 <script id="render-fs" type="x-shader/x-fragment">
 precision highp float;
-
 uniform sampler2D u_tex;
-uniform vec2      u_screenSize;
-uniform vec2      u_simPx;
-uniform vec3      u_colA;
-uniform vec3      u_colB;
-uniform float     u_time;
+uniform vec2  u_screenSize;
+uniform vec2  u_simPx;
+uniform vec3  u_colA;
+uniform vec3  u_colB;
+uniform float u_time;
 
 void main() {
     vec2 uv = gl_FragCoord.xy / u_screenSize;
 
     float b  = texture2D(u_tex, uv).g;
 
-    // Neighbours at simulation-texel resolution for edge detection & normals
     float bR = texture2D(u_tex, uv + vec2( u_simPx.x,  0.0      )).g;
     float bL = texture2D(u_tex, uv + vec2(-u_simPx.x,  0.0      )).g;
     float bU = texture2D(u_tex, uv + vec2( 0.0,         u_simPx.y)).g;
     float bD = texture2D(u_tex, uv + vec2( 0.0,        -u_simPx.y)).g;
 
-    vec2  grad = vec2(bR - bL, bU - bD);
-    float edge = length(grad);
+    vec2  grad   = vec2(bR - bL, bU - bD);
+    float edge   = length(grad);
 
-    // Fake 3-D surface normal from B-field gradient → goo shading
-    vec3 normal = normalize(vec3(-grad * 6.0, 0.5));
-
-    // Slowly rotating directional light
+    /* Fake 3-D surface normal → goo lighting */
+    vec3 normal   = normalize(vec3(-grad * 6.0, 0.5));
     vec3 lightDir = normalize(vec3(cos(u_time * 0.25), sin(u_time * 0.25), 1.2));
     float diff    = max(dot(normal, lightDir), 0.0);
     float spec    = pow(max(dot(reflect(-lightDir, normal), vec3(0.0, 0.0, 1.0)), 0.0), 24.0);
 
-    // Colour ramp: dark background → full blob colour
     float t   = smoothstep(0.08, 0.45, b);
     vec3  col = mix(u_colA * 0.08, u_colB, t);
 
-    // Lighting
     col *= 0.25 + diff * 0.75;
     col += vec3(spec * 0.55);
-
-    // Edge glow + inner core
     col += u_colB * edge * 1.4;
     col += u_colB * smoothstep(0.42, 0.65, b) * 0.25;
 
-    // Vignette
+    /* Vignette */
     vec2 vUV = uv * 2.0 - 1.0;
     col *= 1.0 - dot(vUV, vUV) * 0.28;
 
-    // Filmic tone mapping + gamma
     col = 1.0 - exp(-col * 2.2);
     gl_FragColor = vec4(pow(col, vec3(0.85)), 1.0);
 }
@@ -165,13 +181,14 @@ void main() {
 
     <script src="{{ url_for('static', filename='javascript/gallery-save.js') }}"></script>
     <script>
-    // ─── Constants ──────────────────────────────────────────────
+    // ─── Constants ───────────────────────────────────────────────
     const SIM_W           = 512;
     const SIM_H           = 512;
     const STEPS_PER_FRAME = 10;
     const HISTORY_SIZE    = 8;
 
-    // Each emotion maps to a distinct named region in the Gray-Scott phase diagram
+    // Gray-Scott parameters per emotion — each lands in a distinct
+    // named region of the G-S phase diagram (worms, mitosis, etc.)
     const EMOTION_PARAMS = {
         anger:    { f: 0.078, k: 0.061, da: 0.2097, db: 0.105 }, // chaotic worms
         joy:      { f: 0.035, k: 0.060, da: 0.2097, db: 0.105 }, // mitosis / expanding spots
@@ -196,22 +213,28 @@ void main() {
 
     // ─── WebGL2 Setup ────────────────────────────────────────────
     const canvas = document.getElementById('rdCanvas');
-    // preserveDrawingBuffer required for canvas.toDataURL (gallery save)
+    // preserveDrawingBuffer is required for canvas.toDataURL (gallery save)
     const gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
 
     if (!gl) {
-        document.getElementById('recording-status').textContent = 'WebGL2 unavailable';
+        document.getElementById('recording-status').textContent = 'WebGL2 required';
         throw new Error('WebGL2 not supported');
     }
-    gl.getExtension('EXT_color_buffer_float');
 
-    // ─── Shader Helpers ──────────────────────────────────────────
+    // Attempt to enable float framebuffers; fall back to RGBA8 if unavailable
+    const floatSupported = !!gl.getExtension('EXT_color_buffer_float');
+    const INTERNAL_FMT   = floatSupported ? gl.RGBA32F : gl.RGBA8;
+    const TEXEL_TYPE     = floatSupported ? gl.FLOAT   : gl.UNSIGNED_BYTE;
+
+    console.log('[RD] Float FBO support:', floatSupported, '— using', floatSupported ? 'RGBA32F' : 'RGBA8');
+
+    // ─── Shader Utilities ────────────────────────────────────────
     function compileShader(type, src) {
         const s = gl.createShader(type);
         gl.shaderSource(s, src);
         gl.compileShader(s);
         if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
-            console.error('Shader error:', gl.getShaderInfoLog(s));
+            console.error('Shader compile error:', gl.getShaderInfoLog(s));
         return s;
     }
 
@@ -226,9 +249,12 @@ void main() {
     }
 
     const vsSrc      = document.getElementById('vs').text;
+    const initProg   = makeProgram(vsSrc, document.getElementById('init-fs').text);
+    const seedProg   = makeProgram(vsSrc, document.getElementById('seed-fs').text);
     const simProg    = makeProgram(vsSrc, document.getElementById('sim-fs').text);
     const renderProg = makeProgram(vsSrc, document.getElementById('render-fs').text);
 
+    // Fullscreen quad
     const quadBuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
     gl.bufferData(gl.ARRAY_BUFFER,
@@ -242,16 +268,15 @@ void main() {
         gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     }
 
-    // ─── Ping-Pong Framebuffers ──────────────────────────────────
-    function makeFloatTexture(data) {
+    // ─── Textures & FBOs ─────────────────────────────────────────
+    function makeTexture() {
         const tex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, tex);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-        // RGBA32F — full 32-bit float precision, required for G-S stability
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, SIM_W, SIM_H, 0, gl.RGBA, gl.FLOAT, data);
+        gl.texImage2D(gl.TEXTURE_2D, 0, INTERNAL_FMT, SIM_W, SIM_H, 0, gl.RGBA, TEXEL_TYPE, null);
         return tex;
     }
 
@@ -259,58 +284,70 @@ void main() {
         const fbo = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+        const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+        if (status !== gl.FRAMEBUFFER_COMPLETE)
+            console.error('[RD] Framebuffer incomplete — status:', status);
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         return fbo;
     }
 
-    function buildInitData() {
-        const d = new Float32Array(SIM_W * SIM_H * 4);
-        for (let i = 0; i < SIM_W * SIM_H; i++) {
-            d[i * 4]     = 1.0; // A = 1
-            d[i * 4 + 1] = 0.0; // B = 0
-            d[i * 4 + 3] = 1.0;
-        }
-        return d;
-    }
-
-    let texPing = makeFloatTexture(buildInitData());
-    let texPong = makeFloatTexture(buildInitData());
+    let texPing = makeTexture();
+    let texPong = makeTexture();
     let fboPing = makeFBO(texPing);
     let fboPong = makeFBO(texPong);
 
-    // ─── Seed Injection ──────────────────────────────────────────
-    function addSeeds(count, radius) {
-        radius = Math.max(3, Math.round(radius));
-        const dia   = radius * 2 + 1;
-        const patch = new Float32Array(dia * dia * 4);
+    // ─── Initialise both textures via shader (A=1, B=0) ─────────
+    // Using a shader avoids typed-array format mismatches entirely
+    function initTexture(fbo) {
+        gl.useProgram(initProg);
+        bindQuad(initProg);
+        gl.viewport(0, 0, SIM_W, SIM_H);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+    initTexture(fboPing);
+    initTexture(fboPong);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-        for (let py = 0; py < dia; py++) {
-            for (let px = 0; px < dia; px++) {
-                const dx  = px - radius;
-                const dy  = py - radius;
-                const idx = (py * dia + px) * 4;
-                if (Math.sqrt(dx * dx + dy * dy) <= radius) {
-                    patch[idx]     = 0.50;
-                    patch[idx + 1] = 0.25;
-                } else {
-                    patch[idx]     = 1.0;
-                    patch[idx + 1] = 0.0;
-                }
-                patch[idx + 3] = 1.0;
-            }
-        }
+    // ─── Seed Injection (shader-based) ───────────────────────────
+    // Each seed is drawn as a circle into the current ping texture
+    // via a read-modify-write shader pass, then swap ping/pong.
+    const seedLoc = {
+        tex:     gl.getUniformLocation(seedProg, 'u_tex'),
+        simSize: gl.getUniformLocation(seedProg, 'u_simSize'),
+        center:  gl.getUniformLocation(seedProg, 'u_center'),
+        radius:  gl.getUniformLocation(seedProg, 'u_radius'),
+    };
 
+    function addSeed(cx, cy, radius) {
+        gl.useProgram(seedProg);
+        bindQuad(seedProg);
+        gl.viewport(0, 0, SIM_W, SIM_H);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fboPong);
+        gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texPing);
-        for (let n = 0; n < count; n++) {
-            const x = Math.floor(Math.random() * (SIM_W - dia));
-            const y = Math.floor(Math.random() * (SIM_H - dia));
-            gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, dia, dia, gl.RGBA, gl.FLOAT, patch);
-        }
+        gl.uniform1i(seedLoc.tex, 0);
+        gl.uniform2f(seedLoc.simSize, SIM_W, SIM_H);
+        gl.uniform2f(seedLoc.center, cx, cy);
+        gl.uniform1f(seedLoc.radius, radius);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        let tmp;
+        tmp = texPing; texPing = texPong; texPong = tmp;
+        tmp = fboPing; fboPing = fboPong; fboPong = tmp;
     }
 
-    addSeeds(25, 8); // initial seeds so patterns are visible immediately
+    function addSeeds(count, radius) {
+        for (let n = 0; n < count; n++) {
+            const cx = Math.random() * SIM_W;
+            const cy = Math.random() * SIM_H;
+            addSeed(cx, cy, radius);
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
 
-    // ─── Emotion / Parameter State ───────────────────────────────
+    addSeeds(25, 8); // initial seeds so patterns start immediately
+
+    // ─── Emotion & Parameter State ───────────────────────────────
     const emotionHistory = [];
     let curF = 0.037, curK = 0.065, curDa = 0.2097, curDb = 0.105;
     let curColBg   = [0.0, 0.02, 0.03];
@@ -321,12 +358,11 @@ void main() {
     function blendParams(emotions) {
         let totalW = 0, f = 0, k = 0, da = 0, db = 0;
         const bg = [0, 0, 0], blob = [0, 0, 0];
-
         EMOTION_KEYS.forEach(em => {
             const score = emotions[em] || 0;
             const p = EMOTION_PARAMS[em];
             const c = EMOTION_COLORS[em];
-            const w = score * score; // squared so dominant emotion wins
+            const w = score * score;
             f += p.f * w; k += p.k * w;
             da += p.da * w; db += p.db * w;
             for (let i = 0; i < 3; i++) {
@@ -335,13 +371,11 @@ void main() {
             }
             totalW += w;
         });
-
         if (totalW < 1e-6) return;
         curF = f / totalW; curK = k / totalW;
         curDa = da / totalW; curDb = db / totalW;
         tarColBg   = bg.map(v => v / totalW);
         tarColBlob = blob.map(v => v / totalW);
-
         document.getElementById('rd-params').textContent =
             `f = ${curF.toFixed(4)}    k = ${curK.toFixed(4)}`;
     }
@@ -366,12 +400,9 @@ void main() {
         blendParams(blended);
     }
 
-    // Called by analyseText with the raw emotions array from /analyse
     function applyEmotions(emotions) {
         const raw = {};
         emotions.forEach(e => raw[e.label] = e.score);
-
-        // Inject seeds — high-arousal emotions trigger more reaction sites
         const seedCount = Math.max(3, Math.round(
             (raw.anger    || 0) * 15 +
             (raw.surprise || 0) * 20 +
@@ -384,22 +415,22 @@ void main() {
         pushHistory(emotions);
     }
 
-    // ─── Cache Uniform Locations ─────────────────────────────────
+    // ─── Cached Uniform Locations ────────────────────────────────
     const simLoc = {
-        tex: gl.getUniformLocation(simProg, 'u_tex'),
+        tex:     gl.getUniformLocation(simProg, 'u_tex'),
         texSize: gl.getUniformLocation(simProg, 'u_texSize'),
-        f: gl.getUniformLocation(simProg, 'u_f'),
-        k: gl.getUniformLocation(simProg, 'u_k'),
-        da: gl.getUniformLocation(simProg, 'u_da'),
-        db: gl.getUniformLocation(simProg, 'u_db'),
+        f:       gl.getUniformLocation(simProg, 'u_f'),
+        k:       gl.getUniformLocation(simProg, 'u_k'),
+        da:      gl.getUniformLocation(simProg, 'u_da'),
+        db:      gl.getUniformLocation(simProg, 'u_db'),
     };
     const renderLoc = {
-        tex: gl.getUniformLocation(renderProg, 'u_tex'),
+        tex:        gl.getUniformLocation(renderProg, 'u_tex'),
         screenSize: gl.getUniformLocation(renderProg, 'u_screenSize'),
-        simPx: gl.getUniformLocation(renderProg, 'u_simPx'),
-        colA: gl.getUniformLocation(renderProg, 'u_colA'),
-        colB: gl.getUniformLocation(renderProg, 'u_colB'),
-        time: gl.getUniformLocation(renderProg, 'u_time'),
+        simPx:      gl.getUniformLocation(renderProg, 'u_simPx'),
+        colA:       gl.getUniformLocation(renderProg, 'u_colA'),
+        colB:       gl.getUniformLocation(renderProg, 'u_colB'),
+        time:       gl.getUniformLocation(renderProg, 'u_time'),
     };
 
     // ─── Simulation Step ─────────────────────────────────────────
@@ -457,20 +488,20 @@ void main() {
     }
     requestAnimationFrame(loop);
 
-    // ─── App Controller (mic, text, analyse, save) ───────────────
+    // ─── App Controller ──────────────────────────────────────────
     const button     = document.getElementById('mic-toggle');
     const textInput  = document.getElementById('text-input');
     const textSubmit = document.getElementById('text-submit');
     const saveButton = document.getElementById('save-output');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    let isListening        = false;
-    let recognition        = null;
+    let isListening         = false;
+    let recognition         = null;
     let committedTranscript = '';
-    let liveTranscript     = '';
+    let liveTranscript      = '';
     let shouldAnalyseOnStop = false;
-    let lastTranscriptText = '';
-    let lastEmotions       = [];
+    let lastTranscriptText  = '';
+    let lastEmotions        = [];
 
     function getAppSettings() {
         return window.getEmotionArtSettings ? window.getEmotionArtSettings() : {
@@ -489,15 +520,11 @@ void main() {
         document.getElementById('recording-status').textContent = 'Analysing';
         lastTranscriptText = text;
         updateTranscript(text);
-
         try {
             const response = await fetch('/analyse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text,
-                    model: getAppSettings().model_classifier || 'base',
-                }),
+                body: JSON.stringify({ text, model: getAppSettings().model_classifier || 'base' }),
             });
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.error || payload.details || 'Analyse request failed');
@@ -515,7 +542,6 @@ void main() {
 
             document.getElementById('recording-status').textContent = isListening ? 'Listening' : 'Ready';
             if (saveButton) saveButton.disabled = false;
-
             if (getAppSettings().audio_transcript_persistence === 'clear') updateTranscript('');
         } catch (err) {
             console.error(err);
@@ -557,14 +583,10 @@ void main() {
             if (shouldAnalyseOnStop) {
                 shouldAnalyseOnStop = false;
                 const finalTranscript = (liveTranscript || committedTranscript).trim();
-                committedTranscript = '';
-                liveTranscript = '';
+                committedTranscript = ''; liveTranscript = '';
                 updateTranscript(finalTranscript);
-                if (finalTranscript) {
-                    analyseText(finalTranscript);
-                } else {
-                    document.getElementById('recording-status').textContent = 'Ready';
-                }
+                if (finalTranscript) analyseText(finalTranscript);
+                else document.getElementById('recording-status').textContent = 'Ready';
             }
         });
 
@@ -588,8 +610,7 @@ void main() {
                 button.classList.add('passive');
                 document.getElementById('recording-status').textContent = 'Analysing';
             } else {
-                committedTranscript = '';
-                liveTranscript = '';
+                committedTranscript = ''; liveTranscript = '';
                 shouldAnalyseOnStop = false;
                 isListening = true;
                 updateTranscript('');
@@ -615,7 +636,7 @@ void main() {
     // ─── Gallery Save ────────────────────────────────────────────
     if (window.saveArtwork) {
         window.saveArtwork({
-            pageName: 'bubbles',
+            pageName:     'bubbles',
             captureImage: () => canvas.toDataURL('image/png'),
             getEmotions:  () => lastEmotions,
             getTranscript: () => lastTranscriptText,
