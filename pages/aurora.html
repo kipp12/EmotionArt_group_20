@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmotionArt | Aurora</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css') }}">
+    <style>
+        #auroraCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        {% set themes_active = false %}
+        {% set gallery_active = false %}
+        {% set favourites_active = false %}
+        {% set settings_active = false %}
+        {% include '_sidebar.html' %}
+
+        <main class="app-main">
+            <header class="page-header">
+                <div>
+                    <h2 class="page-title">Aurora</h2>
+                    <p class="page-credit">Crafted by Angelos</p>
+                </div>
+            </header>
+
+            <section class="page-content stage-layout">
+                <div class="visual-stage">
+                    <canvas id="auroraCanvas"></canvas>
+                </div>
+
+                <div class="overlay-panel">
+                    <div class="control-dock">
+                        <div class="control-grid no-mode">
+                            <button id="mic-toggle" type="button" class="brutal-button passive">START LISTENING</button>
+                            <div class="text-input-wrap">
+                                <input id="text-input" class="text-input" type="text" placeholder="Type a thought, feeling, or memory...">
+                            </div>
+                            <button id="text-submit" class="text-submit" type="button">Generate</button>
+                        </div>
+                        <div class="readout-grid">
+                            <div class="readout-cell alt">
+                                <p class="meta-label">Status</p>
+                                <p id="recording-status" class="status-text">Ready</p>
+                            </div>
+                            <div class="readout-cell">
+                                <p class="meta-label">Emotion scores</p>
+                                <div id="classification-output" class="score-list">Waiting for input...</div>
+                            </div>
+                            <div class="readout-cell alt">
+                                <p class="meta-label">Transcript</p>
+                                <pre id="transcript">Waiting for speech or text...</pre>
+                            </div>
+                            <div class="readout-cell save-cell">
+                                <button id="save-output" class="brutal-button passive save-button" type="button" disabled>Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='javascript/gallery-save.js') }}"></script>
+    <script>
+        // ─── Canvas Setup ─────────────────────────────────────────
+        const canvas = document.getElementById('auroraCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ─── Emotion State (interpolated) ─────────────────────────
+        let emotions = { joy: 0, sadness: 0, anger: 0, fear: 0, disgust: 0, surprise: 0, neutral: 0.5 };
+        let targetEmotions = { ...emotions };
+
+        // ─── Emotion → Visual Mapping ─────────────────────────────
+        // Hue values (degrees) per emotion
+        const EMOTION_HUES = {
+            joy:      100,  // yellow-green
+            sadness:  230,  // deep blue
+            anger:    345,  // red/magenta
+            fear:     275,  // dark purple
+            disgust:  120,  // murky green
+            surprise: 185,  // cyan
+            neutral:  195,  // soft teal
+        };
+
+        // Compute the blended aurora hue using circular mean weighted by emotion scores
+        function getDominantHue() {
+            let hX = 0, hY = 0, total = 0;
+            for (const [key, hue] of Object.entries(EMOTION_HUES)) {
+                const w = emotions[key] || 0;
+                const rad = (hue / 360) * Math.PI * 2;
+                hX += Math.cos(rad) * w;
+                hY += Math.sin(rad) * w;
+                total += w;
+            }
+            if (total < 0.01) return 195; // default teal
+            return ((Math.atan2(hY, hX) / (Math.PI * 2)) * 360 + 360) % 360;
+        }
+
+        function getAuroraSpeed() {
+            return 0.25 + (emotions.joy + emotions.surprise) * 0.7 - (emotions.sadness + emotions.fear) * 0.12;
+        }
+
+        function getAuroraAmplitude() {
+            return 0.05 + (emotions.anger + emotions.surprise + emotions.joy) * 0.1;
+        }
+
+        function getFlicker() {
+            return (emotions.anger + emotions.surprise) * 0.35;
+        }
+
+        function getSaturation() {
+            return Math.max(45, Math.min(95,
+                65 + (emotions.anger + emotions.surprise) * 22 - (emotions.sadness + emotions.neutral) * 12
+            ));
+        }
+
+        function getLightness() {
+            return Math.max(35, Math.min(78,
+                55 + (emotions.joy + emotions.surprise) * 18 - (emotions.fear + emotions.sadness) * 20
+            ));
+        }
+
+        // ─── Stars ────────────────────────────────────────────────
+        const NUM_STARS = 220;
+        const stars = Array.from({ length: NUM_STARS }, () => ({
+            x: Math.random(),
+            y: Math.random() * 0.55,
+            size: Math.random() * 1.4 + 0.3,
+            twinkle: Math.random() * Math.PI * 2,
+            twinkleSpeed: 0.018 + Math.random() * 0.025,
+        }));
+
+        function drawStars(W, H) {
+            for (const s of stars) {
+                s.twinkle += s.twinkleSpeed;
+                const alpha = 0.35 + Math.sin(s.twinkle) * 0.3;
+                ctx.beginPath();
+                ctx.arc(s.x * W, s.y * H, s.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+                ctx.fill();
+            }
+        }
+
+        // ─── Aurora Bands ─────────────────────────────────────────
+        const NUM_BANDS = 7;
+        const bands = Array.from({ length: NUM_BANDS }, (_, i) => ({
+            yBase: 0.28 + (i / NUM_BANDS) * 0.38,
+            speedMult: 0.6 + Math.random() * 0.8,
+            waveFreq: 1.2 + Math.random() * 1.8,
+            waveAmp: 0.03 + Math.random() * 0.04,
+            phaseOffset: Math.random() * Math.PI * 2,
+            thickness: 0.07 + Math.random() * 0.08,
+            hueShift: (i / NUM_BANDS) * 40 - 20,
+            opacityBase: 0.45 + Math.random() * 0.3,
+        }));
+
+        function drawAurora(W, H, time) {
+            const speed = getAuroraSpeed();
+            const amplitude = getAuroraAmplitude();
+            const flicker = getFlicker();
+            const baseHue = getDominantHue();
+            const sat = getSaturation();
+            const light = getLightness();
+
+            const steps = 90;
+
+            for (const band of bands) {
+                const hue = (baseHue + band.hueShift + 360) % 360;
+                const flickerNoise = flicker > 0.05 ? (Math.random() - 0.5) * flicker * 0.5 : 0;
+                const bandOpacity = Math.min(0.9,
+                    band.opacityBase * (0.55 + emotions.joy * 0.3 + emotions.surprise * 0.2 - emotions.sadness * 0.1) + flickerNoise
+                );
+
+                const bandH = (band.thickness + amplitude * 0.6) * H;
+
+                // Build the center Y-line for this band
+                const yPoints = [];
+                for (let s = 0; s <= steps; s++) {
+                    const x = (s / steps) * W;
+                    const wave = Math.sin(
+                        (s / steps) * band.waveFreq * Math.PI * 2
+                        + time * band.speedMult * speed
+                        + band.phaseOffset
+                    ) * (band.waveAmp + amplitude * 0.5) * H;
+                    yPoints.push({ x, yCenter: band.yBase * H + wave });
+                }
+
+                // Draw band using a vertical gradient per segment column
+                // We draw a filled path and fill with a radial-ish gradient
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+
+                // Top edge path
+                ctx.beginPath();
+                ctx.moveTo(yPoints[0].x, yPoints[0].yCenter - bandH * 0.5);
+                for (let s = 1; s <= steps; s++) {
+                    ctx.lineTo(yPoints[s].x, yPoints[s].yCenter - bandH * 0.5);
+                }
+                // Bottom edge (reverse)
+                for (let s = steps; s >= 0; s--) {
+                    ctx.lineTo(yPoints[s].x, yPoints[s].yCenter + bandH * 0.5);
+                }
+                ctx.closePath();
+
+                // Vertical gradient to fade at top/bottom of the band
+                const midY = yPoints[Math.floor(steps / 2)].yCenter;
+                const grad = ctx.createLinearGradient(0, midY - bandH * 0.5, 0, midY + bandH * 0.5);
+                grad.addColorStop(0,    `hsla(${hue},${sat}%,${light}%,0)`);
+                grad.addColorStop(0.25, `hsla(${hue},${sat}%,${light}%,${bandOpacity * 0.75})`);
+                grad.addColorStop(0.5,  `hsla(${hue},${sat}%,${light}%,${bandOpacity})`);
+                grad.addColorStop(0.75, `hsla(${hue},${sat}%,${light}%,${bandOpacity * 0.75})`);
+                grad.addColorStop(1,    `hsla(${hue},${sat}%,${light}%,0)`);
+
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // ─── Render Loop ──────────────────────────────────────────
+        let time = 0;
+
+        function render() {
+            const W = canvas.parentElement ? canvas.parentElement.clientWidth : window.innerWidth;
+            const H = canvas.parentElement ? canvas.parentElement.clientHeight : window.innerHeight;
+            if (canvas.width !== W || canvas.height !== H) {
+                canvas.width = W;
+                canvas.height = H;
+            }
+
+            // Smooth interpolation toward target emotions
+            for (const key of Object.keys(emotions)) {
+                emotions[key] += (targetEmotions[key] - emotions[key]) * 0.025;
+            }
+
+            // Night sky gradient background
+            const bg = ctx.createLinearGradient(0, 0, 0, H);
+            bg.addColorStop(0,   '#000408');
+            bg.addColorStop(0.5, '#020b16');
+            bg.addColorStop(1,   '#050d1e');
+            ctx.fillStyle = bg;
+            ctx.fillRect(0, 0, W, H);
+
+            drawStars(W, H);
+            drawAurora(W, H, time);
+
+            time += 0.007;
+            requestAnimationFrame(render);
+        }
+
+        render();
+
+        // ─── Apply Emotions ───────────────────────────────────────
+        function applyEmotions(emotionList) {
+            const map = {};
+            for (const e of (emotionList || [])) map[e.label] = e.score;
+            targetEmotions = {
+                joy:      map.joy      || 0,
+                sadness:  map.sadness  || 0,
+                anger:    map.anger    || 0,
+                fear:     map.fear     || 0,
+                disgust:  map.disgust  || 0,
+                surprise: map.surprise || 0,
+                neutral:  map.neutral  || 0,
+            };
+        }
+
+        // ─── Controls ─────────────────────────────────────────────
+        const saveButton = document.getElementById('save-output');
+        let lastEmotions = [];
+        let lastTranscriptText = '';
+        let isListening = false;
+        let recognition = null;
+        let committedTranscript = '';
+        let liveTranscript = '';
+        let shouldAnalyseOnStop = false;
+
+        function getAppSettings() {
+            return window.getEmotionArtSettings ? window.getEmotionArtSettings() : {
+                audio_default_mic: 'manual',
+                audio_transcript_persistence: 'keep',
+            };
+        }
+
+        function updateTranscript(text) {
+            const el = document.getElementById('transcript');
+            if (el) el.textContent = text || 'Waiting for speech or text...';
+        }
+
+        function renderEmotionScores(emos) {
+            const output = document.getElementById('classification-output');
+            if (!output) return;
+            output.innerHTML = emos.slice(0, 5).map(e => `
+                <div class="score-row">
+                    <span class="score-label">${e.label.toUpperCase()}</span>
+                    <span class="score-value">${Math.round(e.score * 100)}%</span>
+                </div>
+            `).join('');
+        }
+
+        async function analyseText(text) {
+            document.getElementById('recording-status').textContent = 'Analysing';
+            lastTranscriptText = text;
+            updateTranscript(text);
+
+            try {
+                const response = await fetch('/analyse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text }),
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error(payload.details || payload.error || 'Analyse request failed');
+
+                lastEmotions = payload.emotions;
+                renderEmotionScores(payload.emotions);
+                applyEmotions(payload.emotions);
+
+                document.getElementById('recording-status').textContent = isListening ? 'Listening' : 'Ready';
+                if (saveButton) saveButton.disabled = false;
+
+                if (getAppSettings().audio_transcript_persistence === 'clear') updateTranscript('');
+            } catch (error) {
+                console.error(error);
+                document.getElementById('classification-output').textContent = error.message || 'Analysis failed.';
+                document.getElementById('recording-status').textContent = 'Model error';
+            }
+        }
+
+        const button = document.getElementById('mic-toggle');
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.addEventListener('result', event => {
+                const finalChunks = [], interimChunks = [];
+                for (let i = 0; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    const text = result[0].transcript.trim();
+                    if (!text) continue;
+                    if (result.isFinal) finalChunks.push(text);
+                    else interimChunks.push(text);
+                }
+                committedTranscript = finalChunks.join(' ').trim();
+                liveTranscript = `${committedTranscript} ${interimChunks.join(' ').trim()}`.trim();
+                updateTranscript(liveTranscript);
+            });
+
+            recognition.addEventListener('end', () => {
+                if (isListening) { recognition.start(); return; }
+                if (shouldAnalyseOnStop) {
+                    shouldAnalyseOnStop = false;
+                    const finalTranscript = (liveTranscript || committedTranscript).trim();
+                    committedTranscript = '';
+                    liveTranscript = '';
+                    updateTranscript(finalTranscript);
+                    if (finalTranscript) analyseText(finalTranscript);
+                    else document.getElementById('recording-status').textContent = 'Ready';
+                }
+            });
+
+            recognition.addEventListener('error', event => {
+                if (event.error !== 'no-speech') {
+                    isListening = false;
+                    button.textContent = 'START LISTENING';
+                    button.classList.remove('secondary');
+                    button.classList.add('passive');
+                    document.getElementById('recording-status').textContent = 'Mic error';
+                }
+            });
+
+            button.addEventListener('click', () => {
+                if (isListening) {
+                    isListening = false;
+                    shouldAnalyseOnStop = true;
+                    recognition.stop();
+                    button.textContent = 'START LISTENING';
+                    button.classList.remove('secondary');
+                    button.classList.add('passive');
+                    document.getElementById('recording-status').textContent = 'Analysing';
+                } else {
+                    committedTranscript = '';
+                    liveTranscript = '';
+                    shouldAnalyseOnStop = false;
+                    isListening = true;
+                    updateTranscript('');
+                    button.textContent = 'END LISTENING';
+                    button.classList.remove('passive');
+                    button.classList.add('secondary');
+                    document.getElementById('recording-status').textContent = 'Listening';
+                    recognition.start();
+                }
+            });
+
+            button.textContent = 'START LISTENING';
+            button.classList.add('passive');
+            if (getAppSettings().audio_default_mic === 'auto') button.click();
+        } else {
+            button.textContent = 'NO MIC API';
+            button.disabled = true;
+            button.classList.add('passive');
+            document.getElementById('recording-status').textContent = 'Mic unavailable';
+        }
+
+        const textInput = document.getElementById('text-input');
+        const textSubmit = document.getElementById('text-submit');
+
+        async function submitText() {
+            const text = textInput.value.trim();
+            if (!text) return;
+            textInput.value = '';
+            await analyseText(text);
+        }
+
+        textSubmit.addEventListener('click', submitText);
+        textInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitText(); });
+
+        if (window.saveArtwork) {
+            window.saveArtwork({
+                pageName: 'aurora',
+                captureImage: () => canvas.toDataURL('image/png'),
+                getEmotions: () => lastEmotions,
+                getTranscript: () => lastTranscriptText,
+            });
+        }
+    </script>
+</body>
+</html>
