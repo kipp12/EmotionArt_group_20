@@ -1,12 +1,12 @@
 ```To any and all developers, there is a developer guide after the user guide! (not added yet)```
 
 # EmotionArt User Guide
-EmotionArt is an interactive art application that turns typed or spoken text into emotion-driven visuals. Users can choose from multiple visual themes, analyse text, and save generated artwork into a local gallery with metadata.
+EmotionArt is an interactive procedural art generator that extracts emotion from typed or spoken transcripts to creates unique and fun artifacts. Users can choose from multiple visual themes and save/favourite their generated artwork. 
 
 ## Requirements
-Python 3.12 is required.
-Internet access is required to install the requirements file and the language processing models.
-A windows laptop or computer - please note this application is not appropriate for mobile screens. 
+- Python 3.12 is required.
+- Internet access is required to install the requirements file and the language processing models.
+- A windows laptop or computer. Please note this application is not appropriate for mobile screens. 
 
 ## Setup Instructions
 - Step 1: Create a python virtual environment by running ```py -3.12 -m venv venv``` in command prompt or powershell.
@@ -45,7 +45,6 @@ After analysis, each theme shows:
 
 Step 4: Save your artwork
 Once a piece has been generated, the Save button becomes available. This saves the artwork to your gallery area.
-
 
 ## Using The Gallery
 The gallery page hosts all of your saved art pieces. Here, you can:
