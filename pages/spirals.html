@@ -3,8 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EmotionArt | Geometric Grid</title>
+    <title>EmotionArt | Spirals</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css') }}">
+
+    <style>
+        .visual-stage.spirals-stage {
+            background:
+                radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08) 0 8%, transparent 26%),
+                linear-gradient(180deg, #040814 0%, #0d1730 52%, #150b24 100%);
+        }
+
+        #p5-holder,
+        #p5-holder canvas {
+            position: absolute;
+            inset: 0;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .spirals-center-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+            max-width: min(70%, 560px);
+            padding: 14px 18px;
+            border-radius: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(9, 12, 22, 0.26);
+            backdrop-filter: blur(10px);
+            color: rgba(255, 255, 255, 0.86);
+            font-family: var(--font-display);
+            font-size: clamp(18px, 2.4vw, 34px);
+            letter-spacing: 0.08em;
+            text-align: center;
+            text-transform: uppercase;
+            pointer-events: none;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.06);
+        }
+    </style>
 </head>
 <body>
     <div class="app-shell">
@@ -17,30 +55,31 @@
         <main class="app-main">
             <header class="page-header">
                 <div>
-                    <h2 class="page-title">Geometric Grid</h2>
-                    <p class="page-credit">Adapted from Brazilian geometric art</p>
+                    <h2 class="page-title">Spirals</h2>
+                    <p class="page-credit">Crafted by Pei Zhang</p>
                 </div>
             </header>
 
             <section class="page-content stage-layout">
-                <div class="visual-stage light-stage">
+                <div class="visual-stage spirals-stage">
                     <div id="p5-holder"></div>
+                    <div id="centerText" class="spirals-center-text" aria-hidden="true">Waiting For Input</div>
                 </div>
 
                 <div class="overlay-panel">
                     <div class="control-dock">
                         <div class="control-grid no-mode">
-                            <button id="mic-toggle" class="brutal-button passive" type="button">START LISTENING</button>
+                            <button id="mic-toggle" type="button" class="brutal-button passive">START LISTENING</button>
                             <div class="text-input-wrap">
                                 <label class="sr-only" for="text-input">Text input</label>
-                                <input id="text-input" class="text-input" type="text" placeholder="Type a feeling, memory, or sentence...">
+                                <input id="text-input" class="text-input" type="text" placeholder="Type a thought, feeling, or memory...">
                             </div>
                             <button id="text-submit" class="text-submit" type="button">Generate</button>
                         </div>
                         <div class="readout-grid">
                             <div class="readout-cell alt">
-                                <p id="status-label" class="meta-label">Status</p>
-                                <p id="status" class="status-text" aria-live="polite" aria-atomic="true">Ready</p>
+                                <p class="meta-label">Status</p>
+                                <p id="status" class="status-text" aria-live="polite" aria-atomic="true">READY</p>
                             </div>
                             <div class="readout-cell">
                                 <p class="meta-label">Emotion scores</p>
@@ -62,7 +101,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
     <script src="{{ url_for('static', filename='javascript/gallery-save.js') }}"></script>
-    <script src="{{ url_for('static', filename='javascript/geometric-grid/geometric-grid-sketch.js') }}"></script>
-    <script src="{{ url_for('static', filename='javascript/geometric-grid/geometric-grid-app.js') }}"></script>
+    <script src="{{ url_for('static', filename='javascript/spirals.js') }}"></script>
 </body>
 </html>

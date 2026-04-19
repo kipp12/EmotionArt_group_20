@@ -34,6 +34,7 @@
                         <div class="control-grid no-mode">
                             <button id="mic-toggle" type="button" class="brutal-button passive">START LISTENING</button>
                             <div class="text-input-wrap">
+                                <label class="sr-only" for="text-input">Text input</label>
                                 <input id="text-input" class="text-input" type="text" placeholder="Type a thought, feeling, or memory...">
                             </div>
                             <button id="text-submit" class="text-submit" type="button">Generate</button>
@@ -41,15 +42,15 @@
                         <div class="readout-grid">
                             <div class="readout-cell alt">
                                 <p class="meta-label">Status</p>
-                                <p id="recording-status" class="status-text">Ready</p>
+                                <p id="recording-status" class="status-text" aria-live="polite" aria-atomic="true">Ready</p>
                             </div>
                             <div class="readout-cell">
                                 <p class="meta-label">Emotion scores</p>
-                                <div id="classification-output" class="score-list">Waiting for input...</div>
+                                <div id="classification-output" class="score-list" aria-live="polite">Waiting for input...</div>
                             </div>
                             <div class="readout-cell alt">
                                 <p class="meta-label">Transcript</p>
-                                <pre id="transcript">Waiting for speech or text...</pre>
+                                <pre id="transcript" aria-live="polite">Waiting for speech or text...</pre>
                             </div>
                             <div class="readout-cell save-cell">
                                 <button id="save-output" class="brutal-button passive save-button" type="button" disabled>Save</button>
@@ -668,7 +669,15 @@ void main() {
 
     function settings() {
         return window.getEmotionArtSettings ? window.getEmotionArtSettings()
-             : { audio_default_mic:'manual', audio_transcript_persistence:'keep', model_classifier:'base' };
+             : {
+                 audio_microphone_access:'enabled',
+                 audio_default_mic:'manual',
+                 audio_transcript_persistence:'keep',
+                 model_classifier:'base',
+             };
+    }
+    function isMicrophoneDisabled() {
+        return settings().audio_microphone_access === 'disabled';
     }
     function setTranscript(t) {
         const el=document.getElementById('transcript');
@@ -714,7 +723,13 @@ void main() {
     txtSubmit.addEventListener('click', submitText);
     txtInput.addEventListener('keydown', e => { if(e.key==='Enter') submitText(); });
 
-    if (SR) {
+    if (isMicrophoneDisabled()) {
+        micBtn.textContent='MIC DISABLED';
+        micBtn.disabled=true;
+        micBtn.classList.remove('secondary','active');
+        micBtn.classList.add('passive');
+        document.getElementById('recording-status').textContent='Mic disabled';
+    } else if (SR) {
         recognition = new SR();
         recognition.continuous = true;
         recognition.interimResults = true;
@@ -780,7 +795,7 @@ void main() {
         micBtn.textContent='START LISTENING';
         micBtn.classList.add('passive');
         document.getElementById('recording-status').textContent='Ready';
-        if (settings().audio_default_mic==='auto') micBtn.click();
+        if (!isMicrophoneDisabled() && settings().audio_default_mic==='auto') micBtn.click();
     } else {
         micBtn.textContent='NO MIC API';
         micBtn.disabled=true;

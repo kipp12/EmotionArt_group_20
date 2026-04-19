@@ -39,22 +39,23 @@
                                 </select>
                             </div>
                             <div class="text-input-wrap">
-                                <input id="text-input" class="text-input" type="text" placeholder="Type a feeling, memory, or sentence...">
+                                <label class="sr-only" for="text-input">Text input</label>
+                                <input id="text-input" class="text-input" type="text" placeholder="Type something...">
                             </div>
                             <button id="text-submit" class="text-submit" type="button">Generate</button>
                         </div>
                         <div class="readout-grid">
                             <div class="readout-cell alt">
                                 <p id="status-label" class="meta-label">Status</p>
-                                <p id="status" class="status-text">Ready</p>
+                                <p id="status" class="status-text" aria-live="polite" aria-atomic="true">Ready</p>
                             </div>
                             <div class="readout-cell">
                                 <p class="meta-label">Emotion scores</p>
-                                <div id="output" class="score-list">Waiting for input...</div>
+                                <div id="output" class="score-list" aria-live="polite">Waiting for input...</div>
                             </div>
                             <div class="readout-cell alt">
                                 <p class="meta-label">Transcript</p>
-                                <pre id="transcript">Waiting for speech or text...</pre>
+                                <pre id="transcript" aria-live="polite">Waiting for speech or text...</pre>
                             </div>
                             <div class="readout-cell save-cell">
                                 <button id="save-output" class="brutal-button passive save-button" type="button" disabled>Save</button>

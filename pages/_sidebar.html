@@ -4,21 +4,36 @@
             const raw = window.localStorage.getItem('emotionart-settings');
             const settings = raw ? JSON.parse(raw) : {};
             const root = document.documentElement;
-            root.dataset.appTheme = settings.appearance_theme || 'light';
+            const highContrastMode = settings.accessibility_high_contrast_mode || 'off';
+            const highContrastEnabled = highContrastMode !== 'off';
+            const disableFocusStyles = typeof settings.accessibility_disable_focus_styles === 'boolean'
+                ? settings.accessibility_disable_focus_styles
+                : (typeof settings.accessibility_focus_visibility === 'boolean'
+                    ? !settings.accessibility_focus_visibility
+                    : false);
+            root.dataset.appTheme = highContrastEnabled
+                ? highContrastMode
+                : (settings.appearance_theme || 'light');
             root.dataset.appDensity = settings.appearance_density || 'comfortable';
             root.dataset.appRetro = settings.appearance_retro || 'default';
             root.dataset.largeText = String(!!settings.accessibility_large_text);
-            root.dataset.highContrast = 'false';
+            root.dataset.highContrast = String(highContrastEnabled);
+            root.dataset.highContrastMode = highContrastMode;
             root.dataset.reducedMotion = String(!!settings.accessibility_reduced_motion);
-            root.dataset.focusVisibility = String(!!settings.accessibility_focus_visibility);
+            root.dataset.disableFocusStyles = String(!!disableFocusStyles);
         } catch (error) {
             document.documentElement.dataset.appTheme = 'light';
+            document.documentElement.dataset.highContrast = 'false';
+            document.documentElement.dataset.highContrastMode = 'off';
+            document.documentElement.dataset.disableFocusStyles = 'false';
         }
     })();
 </script>
 <aside class="app-sidebar">
     <div class="brand-text">
-        <h1 class="brand-title">Emotion<span class="brand-title-accent">Art</span></h1>
+        <a class="brand-link" href="/">
+            <h1 class="brand-title">Emotion<span class="brand-title-accent">Art</span></h1>
+        </a>
     </div>
 
     <nav class="sidebar-nav" aria-label="Primary">
@@ -44,6 +59,12 @@
             <span class="nav-link-label">
                 <img class="nav-icon" src="{{ url_for('static', filename='images/settings-pixel-icon.png') }}" alt="" aria-hidden="true">
                 <span>Settings</span>
+            </span>
+        </a>
+        <a class="nav-link{% if help_active %} active{% endif %}" href="/help">
+            <span class="nav-link-label">
+                <img class="nav-icon" src="{{ url_for('static', filename='images/help-pixel-icon.png') }}" alt="" aria-hidden="true">
+                <span>Help</span>
             </span>
         </a>
     </nav>

@@ -350,7 +350,27 @@ let lastTranscriptText = '';
 function getAppSettings() {
     return window.getEmotionArtSettings
         ? window.getEmotionArtSettings()
-        : { audio_default_mic: 'manual', audio_transcript_persistence: 'keep' };
+        : {
+            audio_microphone_access: 'enabled',
+            audio_default_mic: 'manual',
+            audio_transcript_persistence: 'keep',
+        };
+}
+
+function isMicrophoneDisabled() {
+    return getAppSettings().audio_microphone_access === 'disabled';
+}
+
+function applyBlockedMicState() {
+    isListening = false;
+    shouldAnalyseOnStop = false;
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'MIC DISABLED';
+        button.classList.remove('secondary', 'active');
+        button.classList.add('passive');
+    }
+    document.getElementById('status').textContent = 'MIC DISABLED';
 }
 
 /** Update the transcript display in the overlay panel. */
@@ -435,7 +455,9 @@ textInput.addEventListener('keydown', e => {
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-if (SpeechRecognition) {
+if (isMicrophoneDisabled()) {
+    applyBlockedMicState();
+} else if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.continuous     = true;
     recognition.interimResults = true;
@@ -512,7 +534,7 @@ if (SpeechRecognition) {
     button.classList.add('passive');
     document.getElementById('status').textContent = 'READY';
 
-    if (getAppSettings().audio_default_mic === 'auto') button.click();
+    if (!isMicrophoneDisabled() && getAppSettings().audio_default_mic === 'auto') button.click();
 } else {
     button.disabled = true;
     button.textContent = 'MIC UNSUPPORTED';

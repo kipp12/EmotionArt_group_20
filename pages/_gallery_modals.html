@@ -1,0 +1,22 @@
+<div id="rename-artwork-modal" class="modal-backdrop" aria-modal="true" role="dialog" aria-labelledby="rename-modal-title" aria-describedby="rename-modal-body">
+    <div class="modal-box">
+        <h3 id="rename-modal-title" class="modal-title">Rename Artwork</h3>
+        <p id="rename-modal-body" class="modal-body">Choose a new title for this saved artwork.</p>
+        <input id="rename-artwork-input" class="modal-input" type="text" autocomplete="off" spellcheck="false" maxlength="120" aria-label="New artwork title">
+        <div class="modal-actions">
+            <button id="rename-artwork-cancel" class="gallery-action" type="button">Cancel</button>
+            <button id="rename-artwork-confirm" class="gallery-action gallery-action-download" type="button">Save Title</button>
+        </div>
+    </div>
+</div>
+
+<div id="delete-artwork-modal" class="modal-backdrop" aria-modal="true" role="dialog" aria-labelledby="delete-modal-title" aria-describedby="delete-modal-body">
+    <div class="modal-box">
+        <h3 id="delete-modal-title" class="modal-title">Delete Artwork</h3>
+        <p id="delete-modal-body" class="modal-body">This will permanently delete <strong id="delete-artwork-title">this artwork</strong> from the local gallery folder.</p>
+        <div class="modal-actions">
+            <button id="delete-artwork-cancel" class="gallery-action" type="button">Cancel</button>
+            <button id="delete-artwork-confirm" class="gallery-action gallery-action-danger" type="button">Delete</button>
+        </div>
+    </div>
+</div>

@@ -27,7 +27,7 @@
                     {% for item in gallery_items %}
                     <article class="gallery-card">
                         <button class="gallery-delete" type="button" data-delete data-filename="{{ item.file_name }}" aria-label="Delete {{ item.title }}">X</button>
-                        <button class="gallery-favorite is-favorite" type="button" data-favorite data-filename="{{ item.file_name }}" data-favorite-state="true" aria-label="Unfavorite {{ item.title }}"><span class="favorite-star" aria-hidden="true">★</span></button>
+                        <button class="gallery-favorite is-favorite" type="button" data-favorite data-title="{{ item.title }}" data-filename="{{ item.file_name }}" data-favorite-state="true" aria-label="Remove favourite from {{ item.title }}" aria-pressed="true"><span class="favorite-star" aria-hidden="true">★</span></button>
                         <div class="gallery-media">
                             <img src="{{ url_for('gallery_file', filename=item.file_name) }}" alt="{{ item.title }}">
                         </div>
@@ -50,21 +50,15 @@
                 </div>
                 {% endif %}
             </section>
+
+            {% include '_watermark.html' %}
         </main>
     </div>
 
+    {% include '_gallery_modals.html' %}
+
+    <script src="{{ url_for('static', filename='javascript/gallery-dialogs.js') }}"></script>
     <script>
-        /*
-         * Favourites page client script.
-         *
-         * Same client behaviour as gallery.html (favourite / rename /
-         * delete + cross-tab sync via localStorage), but the page only
-         * shows cards where item.favorite === true (filtered server-side
-         * in app.py's favourites route).
-         *
-         * Unfavouriting a card here makes it disappear from this view
-         * (because the reload re-runs the server-side filter).
-         */
         function broadcastGalleryChange(type, filename) {
             window.localStorage.setItem('emotionart-gallery-event', JSON.stringify({
                 type,
@@ -85,10 +79,13 @@
 
                 const payload = await response.json();
                 if (!response.ok) {
-                    showToast(payload.error || 'Favourite update failed.');
+                    window.EmotionArtDialogs.showToast(payload.error || 'Favourite update failed.');
                     return;
                 }
 
+                button.dataset.favoriteState = String(favorite);
+                button.setAttribute('aria-pressed', String(favorite));
+                button.setAttribute('aria-label', `${favorite ? 'Remove favourite from' : 'Add favourite to'} ${button.dataset.title}`);
                 broadcastGalleryChange('favorite', filename);
                 window.location.reload();
             });
@@ -98,7 +95,7 @@
             button.addEventListener('click', async () => {
                 const filename = button.dataset.filename;
                 const currentTitle = button.dataset.title;
-                const newTitle = window.prompt('Rename artwork', currentTitle);
+                const newTitle = await window.EmotionArtDialogs.promptRename(currentTitle);
                 if (!newTitle || newTitle.trim() === currentTitle) return;
 
                 const response = await fetch('/api/gallery/rename', {
@@ -109,7 +106,7 @@
 
                 const payload = await response.json();
                 if (!response.ok) {
-                    showToast(payload.error || 'Rename failed.');
+                    window.EmotionArtDialogs.showToast(payload.error || 'Rename failed.');
                     return;
                 }
 
@@ -121,7 +118,9 @@
         document.querySelectorAll('[data-delete]').forEach(button => {
             button.addEventListener('click', async () => {
                 const filename = button.dataset.filename;
-                if (!window.confirm('Delete this artwork from the local gallery folder?')) return;
+                const title = button.closest('.gallery-card')?.querySelector('.gallery-title')?.textContent?.trim();
+                const confirmed = await window.EmotionArtDialogs.confirmDelete(title);
+                if (!confirmed) return;
 
                 const response = await fetch('/api/gallery/delete', {
                     method: 'POST',
@@ -136,7 +135,7 @@
                         broadcastGalleryChange('delete', filename);
                         return;
                     }
-                    showToast(payload.error || 'Delete failed.');
+                    window.EmotionArtDialogs.showToast(payload.error || 'Delete failed.');
                     return;
                 }
 

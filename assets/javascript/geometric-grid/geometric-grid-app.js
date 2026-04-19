@@ -46,10 +46,15 @@ let lastTranscriptText = '';
  */
 function getAppSettings() {
     return window.getEmotionArtSettings ? window.getEmotionArtSettings() : {
+        audio_microphone_access: 'enabled',
         audio_default_mic: 'manual',
         audio_transcript_persistence: 'keep',
         model_classifier: 'base',
     };
+}
+
+function isMicrophoneDisabled() {
+    return getAppSettings().audio_microphone_access === 'disabled';
 }
 
 /**
@@ -142,7 +147,13 @@ textInput.addEventListener('keydown', event => {
 // Speech Recognition setup
 // ---------------------------------------------------------------------------
 
-if (SpeechRecognition) {
+if (isMicrophoneDisabled()) {
+    button.disabled = true;
+    button.textContent = 'MIC DISABLED';
+    button.classList.remove('active', 'secondary');
+    button.classList.add('passive');
+    document.getElementById('status').textContent = 'MIC DISABLED';
+} else if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.continuous = true;      // Don't stop after one sentence
     recognition.interimResults = true;  // Stream partial results as the user speaks
@@ -237,7 +248,7 @@ if (SpeechRecognition) {
     document.getElementById('status').textContent = 'READY';
 
     // If the user has 'auto-start mic' enabled in settings, click immediately
-    if (getAppSettings().audio_default_mic === 'auto') {
+    if (!isMicrophoneDisabled() && getAppSettings().audio_default_mic === 'auto') {
         button.click();
     }
 } else {

@@ -27,7 +27,7 @@
                     {% for item in gallery_items %}
                     <article class="gallery-card">
                         <button class="gallery-delete" type="button" data-delete data-filename="{{ item.file_name }}" aria-label="Delete {{ item.title }}">X</button>
-                        <button class="gallery-favorite{% if item.favorite %} is-favorite{% endif %}" type="button" data-favorite data-filename="{{ item.file_name }}" data-favorite-state="{{ 'true' if item.favorite else 'false' }}" aria-label="Toggle favourite {{ item.title }}"><span class="favorite-star" aria-hidden="true">★</span></button>
+                        <button class="gallery-favorite{% if item.favorite %} is-favorite{% endif %}" type="button" data-favorite data-title="{{ item.title }}" data-filename="{{ item.file_name }}" data-favorite-state="{{ 'true' if item.favorite else 'false' }}" aria-label="{{ 'Remove favourite from' if item.favorite else 'Add favourite to' }} {{ item.title }}" aria-pressed="{{ 'true' if item.favorite else 'false' }}"><span class="favorite-star" aria-hidden="true">★</span></button>
                         <div class="gallery-media">
                             <img src="{{ url_for('gallery_file', filename=item.file_name) }}" alt="{{ item.title }}">
                         </div>
@@ -50,27 +50,15 @@
                 </div>
                 {% endif %}
             </section>
+
+            {% include '_watermark.html' %}
         </main>
     </div>
 
-    <script>
-        /*
-         * Gallery page client script.
-         *
-         * Wires up the favourite / rename / delete buttons on each
-         * gallery card. All three hit Flask endpoints under /api/gallery/*
-         * (defined in app.py). After each successful change we write a
-         * localStorage event so other open EmotionArt tabs (gallery,
-         * favourites) can auto-refresh.
-         *
-         * The favourites.html page re-uses these same handlers via a
-         * matching `data-*` attribute set — everything is wired through
-         * data attributes rather than IDs so multiple cards work.
-         */
+    {% include '_gallery_modals.html' %}
 
-        /* Broadcast a gallery change to every other open tab by writing
-         * to localStorage — other tabs listen for the 'storage' event
-         * and reload so their view stays in sync. */
+    <script src="{{ url_for('static', filename='javascript/gallery-dialogs.js') }}"></script>
+    <script>
         function broadcastGalleryChange(type, filename) {
             window.localStorage.setItem('emotionart-gallery-event', JSON.stringify({
                 type,
@@ -79,7 +67,6 @@
             }));
         }
 
-        /* Favourite toggle — POST to /api/gallery/favorite, reload on success. */
         document.querySelectorAll('[data-favorite]').forEach(button => {
             button.addEventListener('click', async () => {
                 const filename = button.dataset.filename;
@@ -92,21 +79,23 @@
 
                 const payload = await response.json();
                 if (!response.ok) {
-                    showToast(payload.error || 'Favourite update failed.');
+                    window.EmotionArtDialogs.showToast(payload.error || 'Favourite update failed.');
                     return;
                 }
 
+                button.dataset.favoriteState = String(favorite);
+                button.setAttribute('aria-pressed', String(favorite));
+                button.setAttribute('aria-label', `${favorite ? 'Remove favourite from' : 'Add favourite to'} ${button.dataset.title}`);
                 broadcastGalleryChange('favorite', filename);
                 window.location.reload();
             });
         });
 
-        /* Rename artwork — prompt for a new title, POST to /api/gallery/rename. */
         document.querySelectorAll('[data-rename]').forEach(button => {
             button.addEventListener('click', async () => {
                 const filename = button.dataset.filename;
                 const currentTitle = button.dataset.title;
-                const newTitle = window.prompt('Rename artwork', currentTitle);
+                const newTitle = await window.EmotionArtDialogs.promptRename(currentTitle);
 
                 if (!newTitle || newTitle.trim() === currentTitle) return;
 
@@ -121,7 +110,7 @@
 
                 const payload = await response.json();
                 if (!response.ok) {
-                    showToast(payload.error || 'Rename failed.');
+                    window.EmotionArtDialogs.showToast(payload.error || 'Rename failed.');
                     return;
                 }
 
@@ -130,12 +119,11 @@
             });
         });
 
-        /* Delete artwork — confirm, POST to /api/gallery/delete, then
-         * remove the DOM card. 404 is treated as success (already gone). */
         document.querySelectorAll('[data-delete]').forEach(button => {
             button.addEventListener('click', async () => {
                 const filename = button.dataset.filename;
-                const confirmed = window.confirm('Delete this artwork from the local gallery folder?');
+                const title = button.closest('.gallery-card')?.querySelector('.gallery-title')?.textContent?.trim();
+                const confirmed = await window.EmotionArtDialogs.confirmDelete(title);
                 if (!confirmed) return;
 
                 const response = await fetch('/api/gallery/delete', {
@@ -151,7 +139,7 @@
                         broadcastGalleryChange('delete', filename);
                         return;
                     }
-                    showToast(payload.error || 'Delete failed.');
+                    window.EmotionArtDialogs.showToast(payload.error || 'Delete failed.');
                     return;
                 }
 
@@ -160,9 +148,6 @@
             });
         });
 
-        /* Cross-tab sync — reload this page when another tab emits a
-         * gallery change event, or when this tab regains focus (so new
-         * artwork saved from a theme page shows up immediately). */
         window.addEventListener('storage', event => {
             if (event.key !== 'emotionart-gallery-event' || !event.newValue) return;
             window.location.reload();

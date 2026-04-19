@@ -10,7 +10,7 @@
     <main class="viewer-stage">
         <div class="viewer-frame">
             <button class="gallery-delete viewer-delete" type="button" data-delete data-filename="{{ filename }}" aria-label="Delete artwork">X</button>
-            <button class="gallery-favorite viewer-favorite{% if item and item.favorite %} is-favorite{% endif %}" type="button" data-favorite data-filename="{{ filename }}" data-favorite-state="{{ 'true' if item and item.favorite else 'false' }}" aria-label="Toggle favourite"><span class="favorite-star" aria-hidden="true">★</span></button>
+            <button class="gallery-favorite viewer-favorite{% if item and item.favorite %} is-favorite{% endif %}" type="button" data-favorite data-title="{{ item.title if item else filename }}" data-filename="{{ filename }}" data-favorite-state="{{ 'true' if item and item.favorite else 'false' }}" aria-label="{{ 'Remove favourite from' if item and item.favorite else 'Add favourite to' }} {{ item.title if item else filename }}" aria-pressed="{{ 'true' if item and item.favorite else 'false' }}"><span class="favorite-star" aria-hidden="true">★</span></button>
             <img class="viewer-image" src="{{ url_for('gallery_file', filename=filename) }}" alt="{{ item.title if item else filename }}">
             {% if item %}
             <div class="viewer-caption">{{ item.title }}</div>
@@ -22,16 +22,10 @@
         </div>
     </main>
 
+    {% include '_gallery_modals.html' %}
+
+    <script src="{{ url_for('static', filename='javascript/gallery-dialogs.js') }}"></script>
     <script>
-        /*
-         * Gallery single-item viewer script.
-         *
-         * Same delete/favourite handlers as gallery.html, but only one
-         * card is on screen. After delete, redirect to /gallery since
-         * the current image no longer exists. After favourite toggle,
-         * reload to pick up the updated star state.
-         * Cross-tab sync uses the same localStorage 'emotionart-gallery-event' key.
-         */
         function broadcastGalleryChange(type, filename) {
             window.localStorage.setItem('emotionart-gallery-event', JSON.stringify({
                 type,
@@ -44,7 +38,7 @@
         if (deleteButton) {
             deleteButton.addEventListener('click', async () => {
                 const filename = deleteButton.dataset.filename;
-                const confirmed = window.confirm('Delete this artwork from the local gallery folder?');
+                const confirmed = await window.EmotionArtDialogs.confirmDelete(document.querySelector('.viewer-caption')?.textContent?.trim());
                 if (!confirmed) return;
 
                 const response = await fetch('/api/gallery/delete', {
@@ -60,7 +54,7 @@
                         window.location.href = '/gallery';
                         return;
                     }
-                    showToast(payload.error || 'Delete failed.');
+                    window.EmotionArtDialogs.showToast(payload.error || 'Delete failed.');
                     return;
                 }
 
@@ -82,10 +76,13 @@
 
                 const payload = await response.json();
                 if (!response.ok) {
-                    showToast(payload.error || 'Favorite update failed.');
+                    window.EmotionArtDialogs.showToast(payload.error || 'Favorite update failed.');
                     return;
                 }
 
+                favoriteButton.dataset.favoriteState = String(favorite);
+                favoriteButton.setAttribute('aria-pressed', String(favorite));
+                favoriteButton.setAttribute('aria-label', `${favorite ? 'Remove favourite from' : 'Add favourite to'} ${favoriteButton.dataset.title}`);
                 broadcastGalleryChange('favorite', filename);
                 window.location.reload();
             });

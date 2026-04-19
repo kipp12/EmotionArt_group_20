@@ -34,10 +34,15 @@ let lastTranscriptText = '';
 /** Read user settings from localStorage (model choice, mic prefs). */
 function getAppSettings() {
     return window.getEmotionArtSettings ? window.getEmotionArtSettings() : {
+        audio_microphone_access: 'enabled',
         audio_default_mic: 'manual',
         audio_transcript_persistence: 'keep',
         model_classifier: 'base',
     };
+}
+
+function isMicrophoneDisabled() {
+    return getAppSettings().audio_microphone_access === 'disabled';
 }
 
 /** Update the transcript display in the overlay panel. */
@@ -125,7 +130,13 @@ textInput.addEventListener('keydown', e => {
 // Speech Recognition
 // ---------------------------------------------------------------------------
 
-if (SpeechRecognition) {
+if (isMicrophoneDisabled()) {
+    button.textContent = 'MIC DISABLED';
+    button.disabled = true;
+    button.classList.remove('secondary', 'active');
+    button.classList.add('passive');
+    document.getElementById('recording-status').textContent = 'Mic disabled';
+} else if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -215,7 +226,7 @@ if (SpeechRecognition) {
     button.textContent = 'START LISTENING';
     button.classList.add('passive');
     document.getElementById('recording-status').textContent = 'Ready';
-    if (getAppSettings().audio_default_mic === 'auto') {
+    if (!isMicrophoneDisabled() && getAppSettings().audio_default_mic === 'auto') {
         button.click();
     }
 } else {

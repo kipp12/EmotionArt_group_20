@@ -41,6 +41,7 @@
                         <div class="control-grid no-mode">
                             <button id="mic-toggle" type="button" class="brutal-button passive">START LISTENING</button>
                             <div class="text-input-wrap">
+                                <label class="sr-only" for="text-input">Text input</label>
                                 <input id="text-input" class="text-input" type="text" placeholder="Type a thought, feeling, or memory...">
                             </div>
                             <button id="text-submit" class="text-submit" type="button">Generate</button>
@@ -48,15 +49,15 @@
                         <div class="readout-grid">
                             <div class="readout-cell alt">
                                 <p class="meta-label">Status</p>
-                                <p id="status" class="status-text">READY</p>
+                                <p id="status" class="status-text" aria-live="polite" aria-atomic="true">READY</p>
                             </div>
                             <div class="readout-cell">
                                 <p class="meta-label">Emotion scores</p>
-                                <div id="output" class="score-list">Waiting for input...</div>
+                                <div id="output" class="score-list" aria-live="polite">Waiting for input...</div>
                             </div>
                             <div class="readout-cell alt">
                                 <p class="meta-label">Transcript</p>
-                                <pre id="transcript">Waiting for speech or text...</pre>
+                                <pre id="transcript" aria-live="polite">Waiting for speech or text...</pre>
                             </div>
                             <div class="readout-cell save-cell">
                                 <button id="save-output" class="brutal-button passive save-button" type="button" disabled>Save</button>

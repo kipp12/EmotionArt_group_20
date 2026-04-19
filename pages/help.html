@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmotionArt | Help</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css') }}">
+</head>
+<body>
+    <div class="app-shell">
+        {% set themes_active = false %}
+        {% set gallery_active = false %}
+        {% set favourites_active = false %}
+        {% set settings_active = false %}
+        {% set help_active = true %}
+        {% include '_sidebar.html' %}
+
+        <main class="app-main">
+            <header class="page-header">
+                <div>
+                    <h2 class="page-title">Help</h2>
+                </div>
+            </header>
+
+            <section class="page-content help-layout">
+                <section class="help-hero">
+                    <h3 class="gallery-section-title">What does this app do?</h3>
+                    <p class="tile-copy">EmotionArt is an interactive procedural art generator that extracts emotion from typed or spoken transcripts to creates unique and fun artifacts. You can choose from multiple visual themes and save/favourite their generated artwork.</p>
+                </section>
+
+                <div class="help-grid">
+                    <div class="help-column">
+                        <section class="help-card">
+                            <h3 class="gallery-section-title">Getting Started</h3>
+                            <p class="tile-copy">When you open EmotionArt, you are welcomed by the Themes page. This is where you choose the visual style you want to use.</p>
+                            <p class="tile-copy">The main navigation bar (LEFT) includes:</p>
+                            <ul class="help-list">
+                                <li><strong>Themes:</strong> choose an art style.</li>
+                                <li><strong>Gallery:</strong> view all saved artwork.</li>
+                                <li><strong>Favourites:</strong> view only favourite artwork.</li>
+                                <li><strong>Settings:</strong> change app behavior and appearance.</li>
+                            </ul>
+                        </section>
+
+                        <section class="help-card">
+                            <h3 class="gallery-section-title">Using The Gallery</h3>
+                            <p class="tile-copy">The gallery page hosts all of your saved art pieces. Here, you can:</p>
+                            <ul class="help-list">
+                                <li>Delete art pieces by clicking the red <strong>X</strong> button found above each gallery item.</li>
+                                <li>Favourite or unfavourite art pieces by clicking the <strong>*</strong> button found above each gallery item.</li>
+                                <li>Download an image of your art piece to your computer by clicking the <strong>DOWNLOAD</strong> button.</li>
+                                <li>View your art piece in fullscreen by clicking the <strong>FULLSCREEN</strong> button.</li>
+                                <li>Rename your art piece by clicking the <strong>RENAME</strong> button.</li>
+                            </ul>
+                        </section>
+
+                        <section class="help-card">
+                            <h3 class="gallery-section-title">Settings</h3>
+                            <p class="tile-copy">The settings page provides a range of options, allowing you to configure:</p>
+                            <ul class="help-list">
+                                <li>The appearance of the application.</li>
+                                <li>The accessibility options.</li>
+                                <li>The audio and input options.</li>
+                                <li>The emotion classifier model.</li>
+                                <li>The saving options.</li>
+                                <li>The privacy options.</li>
+                            </ul>
+                            <p class="tile-copy">To save any changes you make, you must scroll to the bottom of the page and select <strong>SAVE CHANGES</strong>.</p>
+                        </section>
+                    </div>
+
+                    <div class="help-column">
+                        <section class="help-card">
+                            <h3 class="gallery-section-title">How To Use A Theme</h3>
+                            <p class="tile-copy"><strong>Step 1:</strong> Go to Themes and click the one you want use.</p>
+                            <p class="tile-copy"><strong>Step 2:</strong> Enter your input. You can use:</p>
+                            <ul class="help-list">
+                                <li><strong>Text input:</strong> type anything in the text bar and click the <strong>GENERATE</strong> button.</li>
+                                <li><strong>Microphone input:</strong> click <strong>START LISTENING</strong>, speak, then click <strong>STOP LISTENING</strong>. The system will provide a transcript of your speech and analyse it.</li>
+                            </ul>
+                            <p class="tile-copy"><strong>Step 3:</strong> Review the results. After analysis, each theme shows:</p>
+                            <ul class="help-list">
+                                <li>Artwork</li>
+                                <li>Status</li>
+                                <li>Emotion scores</li>
+                                <li>Transcript</li>
+                            </ul>
+                            <p class="tile-copy"><strong>Step 4:</strong> Save your artwork. Once a piece has been generated, the <strong>SAVE</strong> button becomes available. This saves the artwork to your gallery area.</p>
+                        </section>
+
+                        <section class="help-card">
+                            <h3 class="gallery-section-title">Viewing Your Favourite Art Pieces</h3>
+                            <p class="tile-copy">The favourites page hosts all favourited art pieces. Here, the functionality is similar to the gallery:</p>
+                            <ul class="help-list">
+                                <li>Delete art pieces by clicking the red <strong>X</strong> button found above each gallery item.</li>
+                                <li>Unfavourite the art pieces by clicking the <strong>*</strong> button found above each gallery item.</li>
+                                <li>Download an image of your art piece to your computer by clicking the <strong>DOWNLOAD</strong> button.</li>
+                                <li>View your art piece in fullscreen by clicking the <strong>FULLSCREEN</strong> button.</li>
+                                <li>Rename your art piece by clicking the <strong>RENAME</strong> button.</li>
+                            </ul>
+                        </section>
+                    </div>
+                </div>
+            </section>
+
+            {% include '_watermark.html' %}
+        </main>
+    </div>
+</body>
+</html>

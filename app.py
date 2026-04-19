@@ -71,7 +71,7 @@ def page_display_name(page_name):
         'flow_field': 'FLOW FIELD',
         'geometric_grid': 'GEOMETRIC GRID',
         'aurora': 'AURORA',
-        'oesa': 'OESA',
+        'spirals': 'SPIRALS',
     }
     return mapping.get(page_name, page_name.replace('_', ' ').upper())
 
@@ -165,6 +165,12 @@ def gallery():
 def settings():
     """User preferences: model selection, appearance, gallery management."""
     return render_template('settings.html')
+
+
+@app.route('/help')
+def help_page():
+    """Usage guide for navigating and using EmotionArt."""
+    return render_template('help.html')
 
 
 @app.route('/favourites')
@@ -288,10 +294,10 @@ def aurora():
     return render_template('aurora.html')
 
 
-@app.route('/oesa')
-def oesa():
-    """OESA-inspired turtle sketch embedded in the shared EmotionArt shell."""
-    return render_template('oesa.html')
+@app.route('/spirals')
+def spirals():
+    """Collatz-inspired spiral field driven by analysed emotion scores."""
+    return render_template('spirals.html')
 
 
 # ---------------------------------------------------------------------------

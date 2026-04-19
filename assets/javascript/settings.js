@@ -13,8 +13,10 @@
  *   appearance_density       — 'comfortable' | 'compact'
  *   appearance_retro         — 'default' | 'reduced'  (pixel font vs modern font)
  *   accessibility_large_text — boolean
+ *   accessibility_high_contrast_mode — 'off' | 'light' | 'dark'
  *   accessibility_reduced_motion — boolean
- *   accessibility_focus_visibility — boolean
+ *   accessibility_disable_focus_styles — boolean
+ *   audio_microphone_access  — 'enabled' | 'disabled'  (fully allow/block microphone features)
  *   audio_default_mic        — 'manual' | 'auto'  (auto-start mic on page load)
  *   audio_transcript_persistence — 'keep' | 'clear'  (clear transcript after analysis)
  *   model_classifier         — 'base' | 'large'  (which HuggingFace model to use)
@@ -38,8 +40,10 @@
         appearance_density: 'comfortable',
         appearance_retro: 'default',
         accessibility_large_text: false,
+        accessibility_high_contrast_mode: 'off',
         accessibility_reduced_motion: false,
-        accessibility_focus_visibility: false,
+        accessibility_disable_focus_styles: false,
+        audio_microphone_access: 'enabled',
         audio_default_mic: 'manual',
         audio_transcript_persistence: 'keep',
         model_classifier: 'base',
@@ -55,6 +59,16 @@
         const settings = { ...DEFAULT_SETTINGS, ...(rawSettings || {}) };
         if (!VALID_MODEL_CLASSIFIERS.has(settings.model_classifier)) {
             settings.model_classifier = DEFAULT_SETTINGS.model_classifier;
+        }
+        if (!['off', 'light', 'dark'].includes(settings.accessibility_high_contrast_mode)) {
+            settings.accessibility_high_contrast_mode = DEFAULT_SETTINGS.accessibility_high_contrast_mode;
+        }
+        if (!['enabled', 'disabled'].includes(settings.audio_microphone_access)) {
+            settings.audio_microphone_access = DEFAULT_SETTINGS.audio_microphone_access;
+        }
+        if (typeof rawSettings?.accessibility_disable_focus_styles !== 'boolean'
+            && typeof rawSettings?.accessibility_focus_visibility === 'boolean') {
+            settings.accessibility_disable_focus_styles = !rawSettings.accessibility_focus_visibility;
         }
         return settings;
     }
@@ -74,6 +88,10 @@
                     .filter(key => Object.prototype.hasOwnProperty.call(parsed, key))
                     .map(key => [key, parsed[key]])
             );
+            if (!Object.prototype.hasOwnProperty.call(filtered, 'accessibility_disable_focus_styles')
+                && Object.prototype.hasOwnProperty.call(parsed, 'accessibility_focus_visibility')) {
+                filtered.accessibility_disable_focus_styles = !parsed.accessibility_focus_visibility;
+            }
             return normalizeSettings(filtered);
         } catch {
             return { ...DEFAULT_SETTINGS };
@@ -95,13 +113,17 @@
      */
     function applySettings(settings) {
         const root = document.documentElement;
-        root.dataset.appTheme = settings.appearance_theme;
+        const highContrastEnabled = settings.accessibility_high_contrast_mode !== 'off';
+        root.dataset.appTheme = highContrastEnabled
+            ? settings.accessibility_high_contrast_mode
+            : settings.appearance_theme;
         root.dataset.appDensity = settings.appearance_density;
         root.dataset.appRetro = settings.appearance_retro;
         root.dataset.largeText = String(!!settings.accessibility_large_text);
-        root.dataset.highContrast = 'false';
+        root.dataset.highContrast = String(highContrastEnabled);
+        root.dataset.highContrastMode = settings.accessibility_high_contrast_mode;
         root.dataset.reducedMotion = String(!!settings.accessibility_reduced_motion);
-        root.dataset.focusVisibility = String(!!settings.accessibility_focus_visibility);
+        root.dataset.disableFocusStyles = String(!!settings.accessibility_disable_focus_styles);
         // Also store on window so other scripts can access without reading localStorage
         window.EmotionArtSettings = settings;
     }
@@ -335,53 +357,131 @@
             });
         });
 
-        // Clear metadata — wipe transcripts/emotions/favourites but keep images.
-        clearMetadataButton?.addEventListener('click', async event => {
+        const metadataModal = document.getElementById('clear-metadata-modal');
+        const metadataConfirm = document.getElementById('metadata-confirm');
+        const metadataCancel = document.getElementById('metadata-cancel');
+
+        // Clear gallery — delete everything (images + metadata).
+        // Requires the user to type "DELETE" in a confirmation modal before proceeding.
+        const modal = document.getElementById('clear-gallery-modal');
+        const modalInput = document.getElementById('modal-confirm-input');
+        const modalOk = document.getElementById('modal-confirm');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalBackdrops = [metadataModal, modal].filter(Boolean);
+        let activeModal = null;
+        let previousFocus = null;
+
+        function setBackgroundInert(isInert) {
+            Array.from(document.body.children).forEach(child => {
+                if (modalBackdrops.includes(child) || child.tagName === 'SCRIPT') return;
+                if (isInert) {
+                    child.dataset.wasInert = child.inert ? 'true' : 'false';
+                    child.inert = true;
+                    child.setAttribute('aria-hidden', 'true');
+                } else {
+                    child.inert = child.dataset.wasInert === 'true';
+                    child.removeAttribute('aria-hidden');
+                    delete child.dataset.wasInert;
+                }
+            });
+        }
+
+        function getFocusable(container) {
+            return Array.from(container.querySelectorAll(
+                'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+            ));
+        }
+
+        function closeModal(targetModal) {
+            if (!targetModal) return;
+            targetModal.classList.remove('is-open');
+            if (targetModal === modal && modalInput && modalOk) {
+                modalInput.value = '';
+                modalOk.disabled = true;
+            }
+            activeModal = null;
+            setBackgroundInert(false);
+            document.removeEventListener('keydown', onModalKeyDown, true);
+            previousFocus?.focus?.();
+        }
+
+        function onModalKeyDown(event) {
+            if (!activeModal) return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeModal(activeModal);
+                return;
+            }
+
+            if (event.key !== 'Tab') return;
+            const box = activeModal.querySelector('.modal-box');
+            const focusable = getFocusable(box);
+            if (!focusable.length) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+
+        function openModal(targetModal, focusTarget) {
+            if (!targetModal) return;
+            previousFocus = document.activeElement;
+            activeModal = targetModal;
+            targetModal.classList.add('is-open');
+            setBackgroundInert(true);
+            document.addEventListener('keydown', onModalKeyDown, true);
+            window.setTimeout(() => {
+                focusTarget?.focus();
+                focusTarget?.select?.();
+            }, 0);
+        }
+
+        clearMetadataButton?.addEventListener('click', event => {
             event.preventDefault();
-            if (!window.confirm('Clear saved transcripts, emotion scores, and favourite flags?')) return;
+            openModal(metadataModal, metadataCancel || metadataConfirm);
+        });
+
+        metadataCancel?.addEventListener('click', () => closeModal(metadataModal));
+
+        metadataConfirm?.addEventListener('click', async () => {
+            closeModal(metadataModal);
             const response = await fetch('/api/settings/clear-metadata', { method: 'POST' });
             const payload = await response.json();
             syncStatus(response.ok ? 'Saved metadata cleared' : (payload.error || 'Unable to clear metadata'), response.ok ? 'success' : 'error');
         });
 
-        // Clear gallery — delete everything (images + metadata).
-        // Requires the user to type "DELETE" in a confirmation modal before proceeding.
-        const modal       = document.getElementById('clear-gallery-modal');
-        const modalInput  = document.getElementById('modal-confirm-input');
-        const modalOk     = document.getElementById('modal-confirm');
-        const modalCancel = document.getElementById('modal-cancel');
-
-        function openModal() {
-            modalInput.value = '';
-            modalOk.disabled = true;
-            modal.classList.add('is-open');
-            modalInput.focus();
-        }
-        function closeModal() {
-            modal.classList.remove('is-open');
-            modalInput.value = '';
-            modalOk.disabled = true;
-        }
-
         clearGalleryButton?.addEventListener('click', event => {
             event.preventDefault();
-            openModal();
+            if (modalInput && modalOk) {
+                modalInput.value = '';
+                modalOk.disabled = true;
+            }
+            openModal(modal, modalInput);
         });
 
         modalInput?.addEventListener('input', () => {
             modalOk.disabled = modalInput.value.trim() !== 'DELETE';
         });
 
-        modalCancel?.addEventListener('click', closeModal);
+        modalCancel?.addEventListener('click', () => closeModal(modal));
 
-        // Close on backdrop click
-        modal?.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-
-        // Close on Escape
-        document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
+        modalBackdrops.forEach(dialog => {
+            dialog?.addEventListener('click', e => {
+                if (e.target === dialog) {
+                    closeModal(dialog);
+                }
+            });
+        });
 
         modalOk?.addEventListener('click', async () => {
-            closeModal();
+            closeModal(modal);
             const response = await fetch('/api/settings/clear-gallery', { method: 'POST' });
             const payload = await response.json();
             syncStatus(response.ok ? 'Gallery cleared' : (payload.error || 'Unable to clear gallery'), response.ok ? 'success' : 'error');

@@ -23,6 +23,7 @@
 
             <section class="page-content">
                 <form id="settings-form" class="settings-grid">
+                    <div class="settings-column">
                     <section class="settings-card">
                         <h3 class="gallery-section-title">Appearance</h3>
                         <div class="settings-list">
@@ -71,6 +72,17 @@
                             </label>
                             <label class="settings-row">
                                 <span class="settings-copy">
+                                    <strong>High Contrast</strong>
+                                    <span>Please note that high contrast mode will overwrite your application theme setting.</span>
+                                </span>
+                                <select class="settings-select" name="accessibility_high_contrast_mode">
+                                    <option value="off">Off</option>
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
                                     <strong>Reduced Motion</strong>
                                     <span>Disable all animation and motion on the application.</span>
                                 </span>
@@ -78,17 +90,59 @@
                             </label>
                             <label class="settings-row">
                                 <span class="settings-copy">
-                                    <strong>Focus Visibility</strong>
-                                    <span>Add focus indicators to dropdown boxes and text boxes when active.</span>
+                                    <strong>Disable Focus Styles</strong>
+                                    <span>Turn off the visible focus outline shown while navigating the interface.</span>
                                 </span>
-                                <input type="checkbox" class="settings-toggle" name="accessibility_focus_visibility">
+                                <input type="checkbox" class="settings-toggle" name="accessibility_disable_focus_styles">
                             </label>
                         </div>
                     </section>
 
                     <section class="settings-card">
+                        <h3 class="gallery-section-title">Saving</h3>
+                        <div class="settings-list">
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Default Save Format</strong>
+                                    <span>Current export format for artwork saves.</span>
+                                </span>
+                                <select class="settings-select" name="saving_format">
+                                    <option value="png">PNG</option>
+                                </select>
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Gallery Folder</strong>
+                                    <span>Local folder currently used for saved artwork.</span>
+                                </span>
+                                <code class="settings-code">gallery/</code>
+                            </label>
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Filename Pattern</strong>
+                                    <span>Use `[PAGE_NAME]` and `[NUMBER]`.</span>
+                                </span>
+                                <input class="settings-select" type="text" name="saving_filename_pattern" value="MY [PAGE_NAME] ART [NUMBER]">
+                                <span class="field-error" id="filename-pattern-error" aria-live="polite"></span>
+                            </label>
+                        </div>
+                    </section>
+                    </div>
+
+                    <div class="settings-column">
+                    <section class="settings-card">
                         <h3 class="gallery-section-title">Audio & Input</h3>
                         <div class="settings-list">
+                            <label class="settings-row">
+                                <span class="settings-copy">
+                                    <strong>Microphone Access</strong>
+                                    <span>Completely allow or block microphone use across the app.</span>
+                                </span>
+                                <select class="settings-select" name="audio_microphone_access">
+                                    <option value="enabled">Enabled</option>
+                                    <option value="disabled">Disabled</option>
+                                </select>
+                            </label>
                             <label class="settings-row">
                                 <span class="settings-copy">
                                     <strong>Default Microphone State</strong>
@@ -139,36 +193,6 @@
                     </section>
 
                     <section class="settings-card">
-                        <h3 class="gallery-section-title">Saving</h3>
-                        <div class="settings-list">
-                            <label class="settings-row">
-                                <span class="settings-copy">
-                                    <strong>Default Save Format</strong>
-                                    <span>Current export format for artwork saves.</span>
-                                </span>
-                                <select class="settings-select" name="saving_format">
-                                    <option value="png">PNG</option>
-                                </select>
-                            </label>
-                            <label class="settings-row">
-                                <span class="settings-copy">
-                                    <strong>Gallery Folder</strong>
-                                    <span>Local folder currently used for saved artwork.</span>
-                                </span>
-                                <code class="settings-code">gallery/</code>
-                            </label>
-                            <label class="settings-row">
-                                <span class="settings-copy">
-                                    <strong>Filename Pattern</strong>
-                                    <span>Use `[PAGE_NAME]` and `[NUMBER]`.</span>
-                                </span>
-                                <input class="settings-select" type="text" name="saving_filename_pattern" value="MY [PAGE_NAME] ART [NUMBER]">
-                                <span class="field-error" id="filename-pattern-error" aria-live="polite"></span>
-                            </label>
-                        </div>
-                    </section>
-
-                    <section class="settings-card">
                         <h3 class="gallery-section-title">Privacy</h3>
                         <div class="settings-list">
                             <div class="settings-row">
@@ -193,13 +217,25 @@
                             </div>
                         </div>
                     </section>
+                    </div>
                 </form>
 
                 <!-- Clear Gallery confirmation modal -->
-                <div id="clear-gallery-modal" class="modal-backdrop" aria-modal="true" role="dialog" aria-labelledby="modal-title">
+                <div id="clear-metadata-modal" class="modal-backdrop" aria-modal="true" role="dialog" aria-labelledby="clear-metadata-title" aria-describedby="clear-metadata-body">
+                    <div class="modal-box">
+                        <h3 id="clear-metadata-title" class="modal-title">Clear Metadata</h3>
+                        <p id="clear-metadata-body" class="modal-body">This will remove saved transcripts, emotion scores, and favourite flags, but keep your images.</p>
+                        <div class="modal-actions">
+                            <button id="metadata-cancel" class="gallery-action" type="button">Cancel</button>
+                            <button id="metadata-confirm" class="gallery-action gallery-action-danger" type="button">Clear Metadata</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="clear-gallery-modal" class="modal-backdrop" aria-modal="true" role="dialog" aria-labelledby="modal-title" aria-describedby="clear-gallery-copy">
                     <div class="modal-box">
                         <h3 id="modal-title" class="modal-title">Clear Gallery</h3>
-                        <p class="modal-body">This will permanently delete <strong>every saved image and metadata file</strong> in your gallery. This action cannot be undone.</p>
+                        <p id="clear-gallery-copy" class="modal-body">This will permanently delete <strong>every saved image and metadata file</strong> in your gallery. This action cannot be undone.</p>
                         <p class="modal-body">Type <strong>DELETE</strong> below to confirm:</p>
                         <input id="modal-confirm-input" class="modal-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type DELETE to confirm">
                         <div class="modal-actions">
@@ -210,13 +246,15 @@
                 </div>
 
                 <div class="settings-footer">
-                    <div id="settings-status" class="settings-status" data-tone="neutral">Settings ready</div>
+                    <div id="settings-status" class="settings-status" data-tone="neutral" aria-live="polite">Settings ready</div>
                     <div class="settings-actions">
                         <button id="restore-settings" class="gallery-action" type="button">Restore to Default</button>
                         <button id="save-settings" class="gallery-action gallery-action-download" type="button">Save Changes</button>
                     </div>
                 </div>
             </section>
+
+            {% include '_watermark.html' %}
         </main>
     </div>
 </body>

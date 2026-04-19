@@ -94,19 +94,21 @@
                         <span class="theme-card-action">Select</span>
                     </a>
 
-                    <a class="theme-tile" href="/oesa">
+                    <a class="theme-tile" href="/spirals">
                         <div class="tile-media">
-                            <img src="{{ url_for('static', filename='images/oesa.png') }}" alt="OESA theme preview">
+                            <img src="{{ url_for('static', filename='images/spirals.png') }}" alt="Spirals theme preview">
                         </div>
                         <div>
-                            <h3 class="tile-title">OESA</h3>
+                            <h3 class="tile-title">Spirals</h3>
                             <p class="tile-credit">Crafted by Pei Zhang</p>
-                            <p class="tile-copy">A minimalist turtle sketch (beta testing)</p>
+                            <p class="tile-copy">Spiralling constellations.</p>
                         </div>
                         <span class="theme-card-action">Select</span>
                     </a>
                 </div>
             </section>
+
+            {% include '_watermark.html' %}
         </main>
     </div>
 </body>
