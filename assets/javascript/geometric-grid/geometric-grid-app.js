@@ -1,5 +1,7 @@
 /**
- * Geometric Grid — app controller (mic, text input, analyse, save).
+ * Geometric Grid — app controller (mic, text input, analyse, save). 
+ *
+ * This is an extension of Padrão Geométrico Guilherme Vieira's theme. 
  *
  * This is the user-interaction layer for the Geometric Grid theme. It handles:
  *   1. Microphone input via the Web Speech API (SpeechRecognition)
