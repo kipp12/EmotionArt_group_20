@@ -10,7 +10,7 @@ EmotionArt is an interactive procedural art generator that extracts emotion from
 
 ## Setup Instructions
 - Step 1: Create a python virtual environment by running ```py -3.12 -m venv venv``` in command prompt or powershell.
-- Step 2: Run your venv by running ```\venv\Scripts\Activate``` in command prompt or powershell.
+- Step 2: Run your venv by running ```venv\Scripts\Activate``` in command prompt or powershell.
 - Step 3: Install pip (if you do not have it) by running ```-m pip install --upgrade pip``` in command prompt or powershell.
 - Step 4: Install the requirements in the emotionart folder by running ```pip install -r requirements.txt``` in command prompt or powershell.
 - Step 5: Once the requirements are installed, run the app by running ```python app.py```.
